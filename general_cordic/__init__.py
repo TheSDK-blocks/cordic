@@ -43,7 +43,7 @@ from spice import *
 
 import numpy as np
 
-class inverter(rtl,spice,thesdk):
+class general_cordic(rtl,spice,thesdk):
 
     def __init__(self,*arg): 
         """ Inverter parameters and attributes
@@ -294,92 +294,92 @@ class inverter(rtl,spice,thesdk):
 if __name__=="__main__":
     import argparse
     import matplotlib.pyplot as plt
-    from inverter import *
-    from inverter.controller import controller as inverter_controller
-    from inverter.signal_source import signal_source
-    from inverter.signal_plotter import signal_plotter
-    import pdb
+    # from inverter import *
+    # from inverter.controller import controller as inverter_controller
+    # from inverter.signal_source import signal_source
+    # from inverter.signal_plotter import signal_plotter
+    # import pdb
 
-    # Implement argument parser
-    parser = argparse.ArgumentParser(description='Parse selectors')
-    parser.add_argument('--show', dest='show', type=bool, nargs='?', const = True, 
-            default=False,help='Show figures on screen')
-    args=parser.parse_args()
+    # # Implement argument parser
+    # parser = argparse.ArgumentParser(description='Parse selectors')
+    # parser.add_argument('--show', dest='show', type=bool, nargs='?', const = True, 
+    #         default=False,help='Show figures on screen')
+    # args=parser.parse_args()
 
-    length=2**8
-    rs=100e6
-    lang='sv'
-    #Testbench vhdl
-    #lang='vhdl'
-    controller=inverter_controller(lang=lang)
-    controller.Rs=rs
-    #controller.reset()
-    #controller.step_time()
-    controller.start_datafeed()
-    #models=['py','sv','icarus', 'ghdl', 'vhdl','eldo','spectre', 'ngspice']
-    #By default, we set only open souce simulators
-    models=['py', 'icarus', 'ghdl', 'ngspice']
-    # Here we instantiate the signal source
-    duts=[]
-    plotters=[]
-    #Here we construct the 'testbench'
-    s_source=signal_source()
-    for model in models:
-        # Create an inverter
-        d=inverter()
-        duts.append(d) 
-        d.model=model
-        if model == 'ghdl':
-            d.lang='vhdl'
-        else:
-            d.lang=lang
-        d.Rs=rs
-        #d.preserve_rtlfiles = True
-        # Enable debug messages
-        #d.DEBUG = True
-        # Run simulations in interactive modes to monitor progress/results
-        #d.interactive_spice=True
-        #d.interactive_rtl=True
-        # Preserve the IO files or simulator files for debugging purposes
-        #d.preserve_iofiles = True
-        #d.preserve_spicefiles = True
-        # Save the entity state after simulation
-        #d.save_state = True
-        #d.save_database = True
-        # Optionally load the state of the most recent simulation
-        #d.load_state = 'latest'
-        # This connects the input to the output of the signal source
-        d.IOS.Members['A']=s_source.IOS.Members['data']
-        # This connects the clock to the output of the signal source
-        d.IOS.Members['CLK']=s_source.IOS.Members['clk']
-        d.IOS.Members['control_write']=controller.IOS.Members['control_write']
-        ## Add plotters
-        p=signal_plotter()
-        plotters.append(p) 
-        p.plotmodel=d.model
-        p.plotvdd=d.vdd
-        p.Rs = rs
-        p.IOS.Members['A']=d.IOS.Members['A']
-        p.IOS.Members['Z']=d.IOS.Members['Z']
-        p.IOS.Members['A_OUT']=d.IOS.Members['A_OUT']
-        p.IOS.Members['A_DIG']=d.IOS.Members['A_DIG']
-        p.IOS.Members['Z_ANA']=d.IOS.Members['Z_ANA']
-        p.IOS.Members['Z_RISE']=d.IOS.Members['Z_RISE']
-        
+    # length=2**8
+    # rs=100e6
+    # lang='sv'
+    # #Testbench vhdl
+    # #lang='vhdl'
+    # controller=inverter_controller(lang=lang)
+    # controller.Rs=rs
+    # #controller.reset()
+    # #controller.step_time()
+    # controller.start_datafeed()
+    # #models=['py','sv','icarus', 'ghdl', 'vhdl','eldo','spectre', 'ngspice']
+    # #By default, we set only open souce simulators
+    # models=['py', 'icarus', 'ghdl', 'ngspice']
+    # # Here we instantiate the signal source
+    # duts=[]
+    # plotters=[]
+    # #Here we construct the 'testbench'
+    # s_source=signal_source()
+    # for model in models:
+    #     # Create an inverter
+    #     d=inverter()
+    #     duts.append(d) 
+    #     d.model=model
+    #     if model == 'ghdl':
+    #         d.lang='vhdl'
+    #     else:
+    #         d.lang=lang
+    #     d.Rs=rs
+    #     #d.preserve_rtlfiles = True
+    #     # Enable debug messages
+    #     #d.DEBUG = True
+    #     # Run simulations in interactive modes to monitor progress/results
+    #     #d.interactive_spice=True
+    #     #d.interactive_rtl=True
+    #     # Preserve the IO files or simulator files for debugging purposes
+    #     #d.preserve_iofiles = True
+    #     #d.preserve_spicefiles = True
+    #     # Save the entity state after simulation
+    #     #d.save_state = True
+    #     #d.save_database = True
+    #     # Optionally load the state of the most recent simulation
+    #     #d.load_state = 'latest'
+    #     # This connects the input to the output of the signal source
+    #     d.IOS.Members['A']=s_source.IOS.Members['data']
+    #     # This connects the clock to the output of the signal source
+    #     d.IOS.Members['CLK']=s_source.IOS.Members['clk']
+    #     d.IOS.Members['control_write']=controller.IOS.Members['control_write']
+    #     ## Add plotters
+    #     p=signal_plotter()
+    #     plotters.append(p) 
+    #     p.plotmodel=d.model
+    #     p.plotvdd=d.vdd
+    #     p.Rs = rs
+    #     p.IOS.Members['A']=d.IOS.Members['A']
+    #     p.IOS.Members['Z']=d.IOS.Members['Z']
+    #     p.IOS.Members['A_OUT']=d.IOS.Members['A_OUT']
+    #     p.IOS.Members['A_DIG']=d.IOS.Members['A_DIG']
+    #     p.IOS.Members['Z_ANA']=d.IOS.Members['Z_ANA']
+    #     p.IOS.Members['Z_RISE']=d.IOS.Members['Z_RISE']
+    #     
 
-    # Here we run the instances
-    s_source.run() # Creates the data to the output
-    for d in duts:
-        d.init()
-        d.run()
-    for p in plotters:
-        p.init()
-        p.run()
+    # # Here we run the instances
+    # s_source.run() # Creates the data to the output
+    # for d in duts:
+    #     d.init()
+    #     d.run()
+    # for p in plotters:
+    #     p.init()
+    #     p.run()
 
-     #This is here to keep the images visible
-     #For batch execution, you should comment the following line 
-    if args.show:
-       input()
-    #This is to have exit status for succesfuulexecution
-    sys.exit(0)
+    #  #This is here to keep the images visible
+    #  #For batch execution, you should comment the following line 
+    # if args.show:
+    #    input()
+    # #This is to have exit status for succesfuulexecution
+    # sys.exit(0)
 
