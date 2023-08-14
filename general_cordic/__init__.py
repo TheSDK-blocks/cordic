@@ -44,6 +44,7 @@ from spice import spice
 
 import numpy as np
 from BitVector import BitVector
+from math import floor, modf
 
 from model_1 import model_1
 
@@ -143,17 +144,21 @@ class general_cordic(rtl, spice, thesdk):
         """
         pass
 
-    def to_fixed_point(self, value, mantissa_bits, fractional_bits):
+    def to_fixed_point(self, value: float, mantissa_bits, fractional_bits):
         # TODO: fractional support
+        (frac, integer) = modf(value)
+        frac_bits = floor((1 << fractional_bits) * frac)
         return (
-            BitVector(intVal=value, size=mantissa_bits),
-            BitVector(intVal=0, size=fractional_bits),
+            BitVector(intVal=int(integer), size=mantissa_bits),
+            BitVector(intVal=frac_bits, size=fractional_bits),
         )
 
     def to_double(
         self, bit_vector: (BitVector, BitVector), fractional_bits
     ):
-        return bit_vector[0].int_val()
+        integer = bit_vector[0].int_val()
+        frac = bit_vector[1].int_val() / (1 << fractional_bits)
+        return integer + frac
 
     def main(self):
         """The main python description of the operation. Contents fully up to
@@ -356,8 +361,9 @@ if __name__ == "__main__":
     models = ["py"]
     duts = []
 
-    max_value = 128
-    test_data = np.random.randint(2, size=max_value).reshape(-1, 1)
+    max_value = 127
+    n_values = 200
+    test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * len(test_data))]).reshape(
         -1, 1
     )
@@ -377,7 +383,7 @@ if __name__ == "__main__":
         dut.init()
         dut.run()
         print("Output:\n")
-        print(dut.IOS.Members["X_OUT"].Data)
+        print(dut.IOS.Members["X_OUT"].Data.reshape(-1, 1))
 
     # length=2**8
     # rs=100e6
