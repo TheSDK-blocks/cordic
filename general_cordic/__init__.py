@@ -44,7 +44,7 @@ from spice import spice
 
 import numpy as np
 from BitVector import BitVector
-from math import floor, modf
+from math import floor, modf, sqrt, pow
 
 from model_1 import model_1
 
@@ -74,7 +74,7 @@ class trigonometric_function:
 
 
 class general_cordic(rtl, spice, thesdk):
-    def __init__(self, *arg):
+    def __init__(self, *arg, mantissa_bits=12, fractional_bits=4, iterations=16):
         """Inverter parameters and attributes
         Parameters
         ----------
@@ -128,6 +128,10 @@ class general_cordic(rtl, spice, thesdk):
 
         self.model = "py"  # Can be set externalouly, but is not propagated
 
+        self.mb = mantissa_bits
+        self.fb = fractional_bits
+        self.iters = iterations
+
         # this copies the parameter values from the parent based
         # on self.proplist
         if len(arg) >= 1:
@@ -144,21 +148,24 @@ class general_cordic(rtl, spice, thesdk):
         """
         pass
 
-    def to_fixed_point(self, value: float, mantissa_bits, fractional_bits):
-        # TODO: fractional support
+    def to_fixed_point(self, value: float):
         (frac, integer) = modf(value)
-        frac_bits = floor((1 << fractional_bits) * frac)
+        frac_bits = floor((1 << self.fb) * frac)
         return (
-            BitVector(intVal=int(integer), size=mantissa_bits),
-            BitVector(intVal=frac_bits, size=fractional_bits),
+            BitVector(intVal=int(integer), size=self.mb),
+            BitVector(intVal=frac_bits, size=self.fb),
         )
 
-    def to_double(
-        self, bit_vector: (BitVector, BitVector), fractional_bits
-    ):
+    def to_double(self, bit_vector: (BitVector, BitVector)):
         integer = bit_vector[0].int_val()
-        frac = bit_vector[1].int_val() / (1 << fractional_bits)
+        frac = bit_vector[1].int_val() / (1 << self.fb)
         return integer + frac
+
+    def calc_k(self):
+        k = 1
+        for i in range(0, self.iters):
+            k *= sqrt(1 + pow(2, -2 * i))
+        return k
 
     def main(self):
         """The main python description of the operation. Contents fully up to
@@ -183,22 +190,18 @@ class general_cordic(rtl, spice, thesdk):
         self.IOS.Members["Y_OUT"].Data = np.zeros(x_in.size)
         self.IOS.Members["Z_OUT"].Data = np.zeros(x_in.size)
 
-        mantissa_bits = 12
-        frac_bits = 4
-        iterations = 16
-
-        dut = model_1(mantissa_bits, frac_bits, iterations)
+        dut = model_1(self.mb, self.fb, self.iters)
 
         for i in range(0, x_in.size):
             dut.set_inputs(
-                self.to_fixed_point(x_in[i][0], mantissa_bits, frac_bits),
-                self.to_fixed_point(y_in[i][0], mantissa_bits, frac_bits),
-                self.to_fixed_point(z_in[i][0], mantissa_bits, frac_bits),
+                self.to_fixed_point(x_in[i][0]),
+                self.to_fixed_point(y_in[i][0]),
+                self.to_fixed_point(z_in[i][0]),
             )
             dut.run()
-            self.IOS.Members["X_OUT"].Data[i] = self.to_double(dut.x_out, frac_bits)
-            self.IOS.Members["Y_OUT"].Data[i] = self.to_double(dut.y_out, frac_bits)
-            self.IOS.Members["Z_OUT"].Data[i] = self.to_double(dut.z_out, frac_bits)
+            self.IOS.Members["X_OUT"].Data[i] = self.to_double(dut.x_out)
+            self.IOS.Members["Y_OUT"].Data[i] = self.to_double(dut.y_out)
+            self.IOS.Members["Z_OUT"].Data[i] = self.to_double(dut.z_out)
 
         # if self.par:
         #     self.queue.put(out)
@@ -360,24 +363,37 @@ if __name__ == "__main__":
 
     models = ["py"]
     duts = []
+    functions = [trigonometric_function.SIN]
 
-    max_value = 127
-    n_values = 200
+    mantissa_bits = 4
+    frac_bits = 16
+    iterations = 16
+
+    max_value = pow(2, mantissa_bits) - 1
+    n_values = 10
     test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * len(test_data))]).reshape(
         -1, 1
     )
 
     for model in models:
-        dut = general_cordic()
-        dut.model = model
-        print("Input:\n")
-        print(test_data)
-        dut.IOS.Members["X_IN"].Data = test_data
-        dut.IOS.Members["Y_IN"].Data = test_data
-        dut.IOS.Members["Z_IN"].Data = test_data
-        dut.IOS.Members["CLK"] = clk
-        duts.append(dut)
+        for function in functions:
+            dut = general_cordic(
+                mantissa_bits=mantissa_bits,
+                fractional_bits=frac_bits,
+                iterations=iterations,
+            )
+            dut.model = model
+            print("Input:\n")
+            print(test_data)
+            if function == trigonometric_function.SIN:
+                dut.IOS.Members["X_IN"].Data = np.full(
+                    test_data.size, 1 / dut.calc_k()
+                ).reshape(-1, 1)
+                dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
+                dut.IOS.Members["Z_IN"].Data = test_data
+            dut.IOS.Members["CLK"] = clk
+            duts.append(dut)
 
     for dut in duts:
         dut.init()
