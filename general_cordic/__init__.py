@@ -34,74 +34,98 @@ defined for the inverter.
 
 import os
 import sys
-if not (os.path.abspath('../../thesdk') in sys.path):
-    sys.path.append(os.path.abspath('../../thesdk'))
+
+if not (os.path.abspath("../../thesdk") in sys.path):
+    sys.path.append(os.path.abspath("../../thesdk"))
 
 from thesdk import thesdk, IO
 from rtl import rtl, rtl_iofile
-import spice
+from spice import spice
 
 import numpy as np
+from BitVector import BitVector
+
+from model_1 import model_1
+
+
+class rotation_type:
+    CIRCULAR = 0
+    LINEAR = 1
+    HYPERBOLIC = 2
+
+
+class cordic_mode:
+    ROTATION = 0
+    VECTORING = 1
+
+
+class trigonometric_function:
+    SIN = 0
+    COS = 1
+    ARCSIN = 2
+    ARCCOS = 3
+    ARCTAN = 4
+    SINH = 5
+    COSH = 6
+    ARCTANH = 7
+    EXPONENTIAL = 8
+    LOG = 9
 
 
 class general_cordic(rtl, spice, thesdk):
-
     def __init__(self, *arg):
-        """ Inverter parameters and attributes
-            Parameters
-            ----------
-                *arg :
-                If any arguments are defined, the first one should be the
-                parent instance
+        """Inverter parameters and attributes
+        Parameters
+        ----------
+            *arg :
+            If any arguments are defined, the first one should be the
+            parent instance
 
-            Attributes
-            ----------
-            proplist : array_like
-                List of strings containing the names of attributes whose
-                values are to be copied
-                from the parent
+        Attributes
+        ----------
+        proplist : array_like
+            List of strings containing the names of attributes whose
+            values are to be copied
+            from the parent
 
-            Rs : float
-                Sampling rate [Hz] of which the input values are assumed to
-                change. Default: 100.0e6
+        Rs : float
+            Sampling rate [Hz] of which the input values are assumed to
+            change. Default: 100.0e6
 
-            vdd : float
-                Supply voltage [V] for inverter analog simulation. Default 1.0.
+        vdd : float
+            Supply voltage [V] for inverter analog simulation. Default 1.0.
 
-            IOS : Bundle
-                Members of this bundle are the IO's of the entity.
-                See documentation of thsdk package.
-                Default members defined as
+        IOS : Bundle
+            Members of this bundle are the IO's of the entity.
+            See documentation of thsdk package.
+            Default members defined as
 
-                self.IOS.Members['A']=IO() # Pointer for input data
-                self.IOS.Members['Z']= IO() # pointer for oputput data
-                self.IOS.Members['control_write']= IO() # Piter for control IO
-                  for rtl simulations
+            self.IOS.Members['A']=IO() # Pointer for input data
+            self.IOS.Members['Z']= IO() # pointer for oputput data
+            self.IOS.Members['control_write']= IO() # Piter for control IO
+              for rtl simulations
 
-            model : string
-                Default 'py' for Python. See documentation of thsdk package
-                for more details.
+        model : string
+            Default 'py' for Python. See documentation of thsdk package
+            for more details.
 
         """
-        self.print_log(type='I', msg='Initializing %s' % (__name__))
-        self.proplist = ['Rs', 'vdd']
+        self.print_log(type="I", msg="Initializing %s" % (__name__))
+        self.proplist = ["Rs", "vdd"]
         self.Rs = 100e6  # Sampling frequency
         self.vdd = 1.0
-        self.IOS.Members['A'] = IO()  # Pointer for input data
-        self.IOS.Members['Z'] = IO()
-        self.IOS.Members['CLK'] = IO()  # Test clock for spice simulations
-        self.IOS.Members['A_OUT'] = IO()  # Test output for the input A
-        # Analog output for inverter for analog simulation
-        self.IOS.Members['Z_ANA'] = IO()
-        # For Extracting rising edges from the output waveform
-        self.IOS.Members['Z_RISE'] = IO()
-        # Extracting values of A and Z at falling edges of CLK in decimal
-        # format (integer, in this case 0 or 1)
-        # The clock signal can be any node voltage in the simulation
-        self.IOS.Members['A_DIG'] = IO()
 
-        self.IOS.Members['control_write'] = IO()
-        self.model = 'py'  # Can be set externally, but is not propagated
+        self.IOS.Members["X_IN"] = IO()
+        self.IOS.Members["Y_IN"] = IO()
+        self.IOS.Members["Z_IN"] = IO()
+        self.IOS.Members["X_OUT"] = IO()
+        self.IOS.Members["Y_OUT"] = IO()
+        self.IOS.Members["Z_OUT"] = IO()
+
+        self.IOS.Members["CLK"] = IO()
+        self.IOS.Members["RST"] = IO()
+
+        self.model = "py"  # Can be set externalouly, but is not propagated
 
         # this copies the parameter values from the parent based
         # on self.proplist
@@ -113,14 +137,26 @@ class general_cordic(rtl, spice, thesdk):
         self.init()
 
     def init(self):
-        """ Method to re-initialize the structure if the attribute values are
-          changed after creation.
+        """Method to re-initialize the structure if the attribute values are
+        changed after creation.
 
         """
         pass
 
+    def to_fixed_point(self, value, mantissa_bits, fractional_bits):
+        # TODO: fractional support
+        return (
+            BitVector(intVal=value, size=mantissa_bits),
+            BitVector(intVal=0, size=fractional_bits),
+        )
+
+    def to_double(
+        self, bit_vector: (BitVector, BitVector), fractional_bits
+    ):
+        return bit_vector[0].int_val()
+
     def main(self):
-        ''' The main python description of the operation. Contents fully up to
+        """The main python description of the operation. Contents fully up to
         designer, however, the
         IO's should be handled bu following this guideline:
 
@@ -130,35 +166,60 @@ class general_cordic(rtl, spice, thesdk):
         2) Do the processing
         3) Assign local variable to output
 
-        '''
-        inval = self.IOS.Members['A'].Data
-        out = np.array(1-inval)
-        if self.par:
-            self.queue.put(out)
-        self.IOS.Members['Z'].Data = out
+        """
+        x_in: np.ndarray = self.IOS.Members["X_IN"].Data
+        y_in: np.ndarray = self.IOS.Members["Y_IN"].Data
+        z_in: np.ndarray = self.IOS.Members["Z_IN"].Data
+
+        assert x_in.size == y_in.size, "Input vectors must be same size!"
+        assert x_in.size == z_in.size, "Input vectors must be same size!"
+
+        self.IOS.Members["X_OUT"].Data = np.zeros(x_in.size)
+        self.IOS.Members["Y_OUT"].Data = np.zeros(x_in.size)
+        self.IOS.Members["Z_OUT"].Data = np.zeros(x_in.size)
+
+        mantissa_bits = 12
+        frac_bits = 4
+        iterations = 16
+
+        dut = model_1(mantissa_bits, frac_bits, iterations)
+
+        for i in range(0, x_in.size):
+            dut.set_inputs(
+                self.to_fixed_point(x_in[i][0], mantissa_bits, frac_bits),
+                self.to_fixed_point(y_in[i][0], mantissa_bits, frac_bits),
+                self.to_fixed_point(z_in[i][0], mantissa_bits, frac_bits),
+            )
+            dut.run()
+            self.IOS.Members["X_OUT"].Data[i] = self.to_double(dut.x_out, frac_bits)
+            self.IOS.Members["Y_OUT"].Data[i] = self.to_double(dut.y_out, frac_bits)
+            self.IOS.Members["Z_OUT"].Data[i] = self.to_double(dut.z_out, frac_bits)
+
+        # if self.par:
+        #     self.queue.put(out)
 
     def run(self, *arg):
-        ''' The default name of the method to be executed. This means:
-            parameters and attributes
-            control what is executed if run method is executed.
-            By this we aim to avoid the need of
-            documenting what is the execution method. It is always self.run.
+        """The default name of the method to be executed. This means:
+        parameters and attributes
+        control what is executed if run method is executed.
+        By this we aim to avoid the need of
+        documenting what is the execution method. It is always self.run.
 
-            Parameters
-            ----------
-            *arg :
-                The first argument is assumed to be the queue for the parallel
-                processing defined in the parent,
-                and it is assigned to self.queue and self.par is set to True.
+        Parameters
+        ----------
+        *arg :
+            The first argument is assumed to be the queue for the parallel
+            processing defined in the parent,
+            and it is assigned to self.queue and self.par is set to True.
 
-        '''
-        if self.model == 'py':
+        """
+        if self.model == "py":
             self.main()
         else:
             # This defines contents of modelsim control file executed
             # when interactive_rtl = True
             # Interactive control files
-            if self.model == 'icarus' or self.model == 'ghdl':
+            if self.model == "icarus" or self.model == "ghdl":
                 self.interactive_control_contents = """
                     set io_facs [list]
                     lappend io_facs "tb_inverter.A"
@@ -178,88 +239,145 @@ class general_cordic(rtl, spice, thesdk):
                     wave zoom full
                 """
 
-            if self.model == 'ghdl':
+            if self.model == "ghdl":
                 # With this structure you can control the signals
                 # to be dumped to VCD pass
-                self.simulator_control_contents = \
-                    ("version = 1.1  # Optional\n"
-                     + "/tb_inverter/A\n"
-                     + "/tb_inverter/Z\n"
-                     + "/tb_inverter/clock\n"
-                     )
+                self.simulator_control_contents = (
+                    "version = 1.1  # Optional\n"
+                    + "/tb_inverter/A\n"
+                    + "/tb_inverter/Z\n"
+                    + "/tb_inverter/clock\n"
+                )
 
-            if self.model in ['sv', 'icarus']:
+            if self.model in ["sv", "icarus"]:
                 # Verilog simulation options here
-                _ = rtl_iofile(self, name='A', dir='in', iotype='sample',
-                               ionames=['A'], datatype='sint')
-                f = rtl_iofile(self, name='Z', dir='out',
-                               iotype='sample', ionames=['Z'], datatype='sint')
+                _ = rtl_iofile(
+                    self,
+                    name="A",
+                    dir="in",
+                    iotype="sample",
+                    ionames=["A"],
+                    datatype="sint",
+                )
+                f = rtl_iofile(
+                    self,
+                    name="Z",
+                    dir="out",
+                    iotype="sample",
+                    ionames=["Z"],
+                    datatype="sint",
+                )
                 # This is to avoid sampling time confusion with Icarus
-                if self.lang == 'sv':
-                    f.rtl_io_sync = '@(negedge clock)'
-                elif self.lang == 'vhdl':
-                    f.rtl_io_sync = 'falling_edge(clock)'
+                if self.lang == "sv":
+                    f.rtl_io_sync = "@(negedge clock)"
+                elif self.lang == "vhdl":
+                    f.rtl_io_sync = "falling_edge(clock)"
 
                 # Defines the sample rate
-                self.rtlparameters = dict([('g_Rs', ('real', self.Rs)),])
+                self.rtlparameters = dict(
+                    [
+                        ("g_Rs", ("real", self.Rs)),
+                    ]
+                )
                 self.run_rtl()
-                self.IOS.Members['Z'].Data = \
-                    self.IOS.Members['Z'].Data[:, 0].astype(int).reshape(-1, 1)
-            elif self.model == 'vhdl' or self.model == 'ghdl':
+                self.IOS.Members["Z"].Data = (
+                    self.IOS.Members["Z"].Data[:, 0].astype(int).reshape(-1, 1)
+                )
+            elif self.model == "vhdl" or self.model == "ghdl":
                 # VHDL simulation options here
-                _ = rtl_iofile(self, name='A', dir='in', iotype='sample',
-                               ionames=['A'])  # IO file for input A
-                f = rtl_iofile(self, name='Z', dir='out',
-                               iotype='sample', ionames=['Z'], datatype='int')
-                if self.lang == 'sv':
-                    f.rtl_io_sync = '@(negedge clock)'
-                elif self.lang == 'vhdl':
-                    f.rtl_io_sync = 'falling_edge(clock)'
+                _ = rtl_iofile(
+                    self, name="A", dir="in", iotype="sample", ionames=["A"]
+                )  # IO file for input A
+                f = rtl_iofile(
+                    self,
+                    name="Z",
+                    dir="out",
+                    iotype="sample",
+                    ionames=["Z"],
+                    datatype="int",
+                )
+                if self.lang == "sv":
+                    f.rtl_io_sync = "@(negedge clock)"
+                elif self.lang == "vhdl":
+                    f.rtl_io_sync = "falling_edge(clock)"
                 # Defines the sample rate
-                self.rtlparameters = dict([('g_Rs', ('real', self.Rs)),])
+                self.rtlparameters = dict(
+                    [
+                        ("g_Rs", ("real", self.Rs)),
+                    ]
+                )
                 self.run_rtl()
-                self.IOS.Members['Z'].Data = self.IOS.Members['Z'].Data.astype(
-                    int).reshape(-1, 1)
+                self.IOS.Members["Z"].Data = (
+                    self.IOS.Members["Z"].Data.astype(int).reshape(-1, 1)
+                )
 
             if self.par:
                 self.queue.put(self.IOS.Members)
 
     def define_io_conditions(self):
-        '''This overloads the method called by run_rtl method. It defines
+        """This overloads the method called by run_rtl method. It defines
         the read/write conditions for the files
 
-        '''
-        if self.lang == 'sv':
+        """
+        if self.lang == "sv":
             # Input A is read to verilog simulation after 'initdone' is set to
             # 1 by controller
-            self.iofile_bundle.Members['A'].rtl_io_condition = 'initdone'
+            self.iofile_bundle.Members["A"].rtl_io_condition = "initdone"
             # Output is read to verilog simulation when all of the outputs are
             # valid, and after 'initdone' is set to 1 by controller
-            self.iofile_bundle.Members['Z'].rtl_io_condition_append(
-                cond='&& initdone')
-        elif self.lang == 'vhdl':
-            self.iofile_bundle.Members['A'].rtl_io_condition = \
-                '(initdone = \'1\')'
+            self.iofile_bundle.Members["Z"].rtl_io_condition_append(cond="&& initdone")
+        elif self.lang == "vhdl":
+            self.iofile_bundle.Members["A"].rtl_io_condition = "(initdone = '1')"
             # Output is read to verilog simulation when all of the outputs
             # are valid, and after 'initdone' is set to 1 by controller
-            self.iofile_bundle.Members['Z'].rtl_io_condition_append(
-                cond='and initdone = \'1\'')
+            self.iofile_bundle.Members["Z"].rtl_io_condition_append(
+                cond="and initdone = '1'"
+            )
 
 
 if __name__ == "__main__":
     import argparse
-    import matplotlib.pyplot as plt
-    # from inverter import *
-    # from inverter.controller import controller as inverter_controller
-    # from inverter.signal_source import signal_source
-    # from inverter.signal_plotter import signal_plotter
-    # import pdb
 
-    # # Implement argument parser
-    # parser = argparse.ArgumentParser(description='Parse selectors')
-    # parser.add_argument('--show', dest='show', type=bool, nargs='?', const = True,
-    #         default=False,help='Show figures on screen')
-    # args=parser.parse_args()
+    # import matplotlib.pyplot as plt
+
+    # Implement argument parser
+    parser = argparse.ArgumentParser(description="Parse selectors")
+    parser.add_argument(
+        "--show",
+        dest="show",
+        type=bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help="Show figures on screen",
+    )
+    args = parser.parse_args()
+
+    models = ["py"]
+    duts = []
+
+    max_value = 128
+    test_data = np.random.randint(2, size=max_value).reshape(-1, 1)
+    clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * len(test_data))]).reshape(
+        -1, 1
+    )
+
+    for model in models:
+        dut = general_cordic()
+        dut.model = model
+        print("Input:\n")
+        print(test_data)
+        dut.IOS.Members["X_IN"].Data = test_data
+        dut.IOS.Members["Y_IN"].Data = test_data
+        dut.IOS.Members["Z_IN"].Data = test_data
+        dut.IOS.Members["CLK"] = clk
+        duts.append(dut)
+
+    for dut in duts:
+        dut.init()
+        dut.run()
+        print("Output:\n")
+        print(dut.IOS.Members["X_OUT"].Data)
 
     # length=2**8
     # rs=100e6
