@@ -73,6 +73,8 @@ class trigonometric_function:
     LOG = 9
 
 
+
+
 class general_cordic(rtl, spice, thesdk):
     def __init__(self, *arg, mantissa_bits=12, fractional_bits=4, iterations=16):
         """Inverter parameters and attributes
@@ -369,9 +371,10 @@ if __name__ == "__main__":
     frac_bits = 16
     iterations = 16
 
-    max_value = pow(2, mantissa_bits) - 1
+    max_value = 1
     n_values = 10
-    test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
+    # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
+    test_data = (np.array([1.0 for i in range(0, n_values)])).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * len(test_data))]).reshape(
         -1, 1
     )
