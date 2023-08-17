@@ -368,9 +368,9 @@ if __name__ == "__main__":
     duts = []
     functions = [trigonometric_function.SIN, trigonometric_function.COS]
 
-    mantissa_bits = 4
-    frac_bits = 16
-    iterations = 20
+    mantissa_bits = 2
+    frac_bits = 14
+    iterations = 16
 
     max_value = 1
     n_values = 10
