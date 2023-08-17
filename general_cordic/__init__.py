@@ -374,7 +374,7 @@ if __name__ == "__main__":
     max_value = 1
     n_values = 10
     # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
-    test_data = (np.array([1.0 for i in range(0, n_values)])).reshape(-1, 1)
+    test_data = np.arange(0.0, np.pi/2, 0.01, dtype=float).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * len(test_data))]).reshape(
         -1, 1
     )

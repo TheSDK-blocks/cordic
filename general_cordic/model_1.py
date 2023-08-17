@@ -148,14 +148,24 @@ class model_1:
             atan_lut_fp.append(man + flo)
 
         for i in range(0, self.iters):
-            # After enough iterations, atan is approximated as 2^(-1)
+            # After enough iterations, atan is approximated as 2^(-i)
             if i < lut_size:
                 atan_val = atan_lut_fp[i]
             else:
                 atan_val = mant_one_vec.deep_copy().shift_right(i)
 
+            sing_ext_vec = (self.mb + self.fb) * [0]
+            for j in range(0, self.mb + self.fb):
+                if j < i:
+                    sing_ext_vec[j] = 1
+            sign_ext_bit_vec = BitVector(bitlist=sing_ext_vec)
             x_shift_vec[i] = x_vec[i].deep_copy().shift_right(i)
             y_shift_vec[i] = y_vec[i].deep_copy().shift_right(i)
+
+            if x_vec[i][self.signbit] == 1:
+                x_shift_vec[i] |= sign_ext_bit_vec
+            if y_vec[i][self.signbit] == 1:
+                y_shift_vec[i] |= sign_ext_bit_vec
 
             x_c_vec[i] = self.adder.add(~x_shift_vec[i], one_vec)
             y_c_vec[i] = self.adder.add(~y_shift_vec[i], one_vec)
@@ -169,13 +179,10 @@ class model_1:
                 x_vec[i + 1] = self.adder.add(x_vec[i], y_shift_vec[i])
                 y_vec[i + 1] = self.adder.add(y_vec[i], x_c_vec[i])
                 z_vec[i + 1] = self.adder.add(z_vec[i], atan_val)
-        import pdb
 
-        pdb.set_trace()
-
-        self.x_out = self.x_in
-        self.y_out = self.y_in
-        self.z_out = self.z_in
+        self.x_out = (x_vec[-1][0:self.mb], x_vec[-1][self.mb:(self.mb + self.fb)])
+        self.y_out = (y_vec[-1][0:self.mb], y_vec[-1][self.mb:(self.mb + self.fb)])
+        self.z_out = (z_vec[-1][0:self.mb], z_vec[-1][self.mb:(self.mb + self.fb)])
 
 
 if __name__ == "__main__":
