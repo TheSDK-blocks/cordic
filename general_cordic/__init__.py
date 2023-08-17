@@ -43,22 +43,10 @@ from rtl import rtl, rtl_iofile
 from spice import spice
 
 import numpy as np
-from BitVector import BitVector
-from math import floor, modf, sqrt, pow
 
 from model_1 import model_1
 import methods
-
-
-class rotation_type:
-    CIRCULAR = 0
-    LINEAR = 1
-    HYPERBOLIC = 2
-
-
-class cordic_mode:
-    ROTATION = 0
-    VECTORING = 1
+import cordic_types
 
 
 class trigonometric_function:
@@ -81,7 +69,8 @@ class general_cordic(rtl, spice, thesdk):
         mantissa_bits=12,
         fractional_bits=4,
         iterations=16,
-        function=trigonometric_function.SIN
+        function=trigonometric_function.SIN,
+        mode=cordic_types.cordic_mode.ROTATION,
     ):
         """Inverter parameters and attributes
         Parameters
@@ -152,6 +141,7 @@ class general_cordic(rtl, spice, thesdk):
         self.fb = fractional_bits
         self.iters = iterations
         self.function = function
+        self.mode = mode
 
         # this copies the parameter values from the parent based
         # on self.proplist
@@ -193,6 +183,7 @@ class general_cordic(rtl, spice, thesdk):
         self.IOS.Members["Z_OUT"].Data = np.zeros(x_in.size)
 
         dut = model_1(self.mb, self.fb, self.iters)
+        dut.set_mode(self.mode)
 
         for i in range(0, x_in.size):
             dut.set_inputs(
@@ -366,7 +357,11 @@ if __name__ == "__main__":
 
     models = ["py"]
     duts = []
-    functions = [trigonometric_function.SIN, trigonometric_function.COS]
+    functions = [
+        trigonometric_function.SIN,
+        trigonometric_function.COS,
+        trigonometric_function.ARCTAN,
+    ]
 
     mantissa_bits = 2
     frac_bits = 14
@@ -397,6 +392,15 @@ if __name__ == "__main__":
                 ).reshape(-1, 1)
                 dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
                 dut.IOS.Members["Z_IN"].Data = test_data
+                dut.mode = cordic_types.cordic_mode.ROTATION
+            elif function == trigonometric_function.ARCTAN:
+                test_data = np.arange(0.0, 1.0, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
+                    -1, 1
+                )
+                dut.IOS.Members["Y_IN"].Data = test_data
+                dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
+                dut.mode = cordic_types.cordic_mode.VECTORING
 
             dut.IOS.Members["CLK"] = clk
             duts.append(dut)
@@ -409,19 +413,26 @@ if __name__ == "__main__":
         fig, ax1 = plt.subplots()
 
         if dut.function == trigonometric_function.SIN:
-            ax1.set_xlabel(r'$\theta$')
-            ax1.set_ylabel(r'$\sin(\theta)$')
+            ax1.set_xlabel(r"$\theta$")
+            ax1.set_ylabel(r"$\sin(\theta)$")
             ax1.set_title(f"{dut.model} sin")
             test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.sin(test_data)
             output = dut.IOS.Members["Y_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.COS:
-            ax1.set_xlabel(r'$\theta$')
-            ax1.set_ylabel(r'$\cos(\theta)$')
+            ax1.set_xlabel(r"$\theta$")
+            ax1.set_ylabel(r"$\cos(\theta)$")
             ax1.set_title(f"{dut.model} cos")
             test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.cos(test_data)
             output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
+        elif dut.function == trigonometric_function.ARCTAN:
+            ax1.set_xlabel(r"$\theta$")
+            ax1.set_ylabel(r"$\arctan(\theta)$")
+            ax1.set_title(f"{dut.model} arctan")
+            test_data = dut.IOS.Members["Y_IN"].Data
+            reference = np.arctan(test_data)
+            output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
 
         error = abs(output - reference)
         ax1.plot(test_data, reference)

@@ -1,5 +1,6 @@
 from BitVector import BitVector
 import methods
+import cordic_types
 
 # from general_cordic import rotation_type, cordic_mode
 
@@ -63,7 +64,7 @@ class model_1:
         self,
         mantissa_bits: int,
         frac_bits: int,
-        iterations: int,
+        iterations: int
     ):
         self.mb = mantissa_bits
         self.fb = frac_bits
@@ -81,10 +82,18 @@ class model_1:
             BitVector(intVal=0, size=self.fb),
         )
         self.type = None
-        self.mode = None
+        self.set_mode(cordic_types.cordic_mode.ROTATION)
 
         self.signbit = 0
         self.adder = ripple_carry_adder(bits=self.mb + self.fb)
+
+    # SIGN CALCULATION INCORRECT FOR VECTORING
+    def set_mode(self, mode: cordic_types.cordic_mode):
+        self._mode = mode
+        if self._mode == cordic_types.cordic_mode.ROTATION:
+            self._d = 0
+        elif self._mode == cordic_types.cordic_mode.VECTORING:
+            self._d = 1
 
     def set_inputs(
         self,
@@ -138,16 +147,18 @@ class model_1:
             x_shift_vec[i] = x_vec[i].deep_copy().shift_right(i)
             y_shift_vec[i] = y_vec[i].deep_copy().shift_right(i)
 
-            if x_vec[i][self.signbit] == 1:
+            # Shifted bits are 0's by default, so here we OR
+            # them to be 1's if the value was negative
+            if x_vec[i][self.signbit] != self._d:
                 x_shift_vec[i] |= sign_ext_bit_vec
-            if y_vec[i][self.signbit] == 1:
+            if y_vec[i][self.signbit] != self._d:
                 y_shift_vec[i] |= sign_ext_bit_vec
 
             x_c_vec[i] = self.adder.add(~x_shift_vec[i], one_vec)
             y_c_vec[i] = self.adder.add(~y_shift_vec[i], one_vec)
             z_c_vec[i] = self.adder.add(~atan_val, one_vec)
 
-            if z_vec[i][self.signbit] == 0:
+            if z_vec[i][self.signbit] == self._d:
                 x_vec[i + 1] = self.adder.add(x_vec[i], y_c_vec[i])
                 y_vec[i + 1] = self.adder.add(y_vec[i], x_shift_vec[i])
                 z_vec[i + 1] = self.adder.add(z_vec[i], z_c_vec[i])
