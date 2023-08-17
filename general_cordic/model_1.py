@@ -45,15 +45,14 @@ class methods:
 
     def to_double_single(bit_vector: BitVector, mantissa_bits: int, float_bits: int):
         if bit_vector[0]:
-            integer = (~bit_vector[1:mantissa_bits]).int_val() + 1
-            frac = ((~bit_vector[mantissa_bits:float_bits]).int_val() + 1) / (
-                1 << float_bits
-            )
-            return -1 * (integer + frac)
+            bt_vec = BitVector(intVal=((~bit_vector).int_val() + 1), size=(mantissa_bits + float_bits))
+            sign = -1
         else:
-            integer = bit_vector[1:mantissa_bits].int_val()
-            frac = bit_vector[mantissa_bits:float_bits].int_val() / (1 << float_bits)
-            return integer + frac
+            bt_vec = bit_vector
+            sign = 1
+        integer = bt_vec[0:mantissa_bits].int_val()
+        frac = bt_vec[mantissa_bits:(mantissa_bits + float_bits)].int_val() / (1 << float_bits)
+        return sign * (integer + frac)
 
 
 class ripple_carry_adder:
@@ -132,7 +131,8 @@ class model_1:
         z_c_vec = (self.iters + 1) * [BitVector(intVal=0, size=(self.mb + self.fb))]
         x_shift_vec = (self.iters + 1) * [BitVector(intVal=0, size=(self.mb + self.fb))]
         y_shift_vec = (self.iters + 1) * [BitVector(intVal=0, size=(self.mb + self.fb))]
-        one_vec = BitVector(intVal=1, size=(self.mb + self.fb)) << self.fb
+        one_vec = BitVector(intVal=1, size=(self.mb + self.fb))
+        mant_one_vec = BitVector(intVal=1, size=(self.mb + self.fb)) << self.fb
 
         x_vec[0] = self.x_in[0] + self.x_in[1]
         y_vec[0] = self.y_in[0] + self.y_in[1]
@@ -152,7 +152,7 @@ class model_1:
             if i < lut_size:
                 atan_val = atan_lut_fp[i]
             else:
-                atan_val = one_vec.deep_copy().shift_right(i)
+                atan_val = mant_one_vec.deep_copy().shift_right(i)
 
             x_shift_vec[i] = x_vec[i].deep_copy().shift_right(i)
             y_shift_vec[i] = y_vec[i].deep_copy().shift_right(i)
@@ -160,8 +160,6 @@ class model_1:
             x_c_vec[i] = self.adder.add(~x_shift_vec[i], one_vec)
             y_c_vec[i] = self.adder.add(~y_shift_vec[i], one_vec)
             z_c_vec[i] = self.adder.add(~atan_val, one_vec)
-
-
 
             if z_vec[i][self.signbit] == 0:
                 x_vec[i + 1] = self.adder.add(x_vec[i], y_c_vec[i])

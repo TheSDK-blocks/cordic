@@ -369,7 +369,7 @@ if __name__ == "__main__":
 
     mantissa_bits = 4
     frac_bits = 16
-    iterations = 16
+    iterations = 20
 
     max_value = 1
     n_values = 10
