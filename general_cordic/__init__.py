@@ -47,6 +47,7 @@ from BitVector import BitVector
 from math import floor, modf, sqrt, pow
 
 from model_1 import model_1
+import methods
 
 
 class rotation_type:
@@ -73,16 +74,33 @@ class trigonometric_function:
     LOG = 9
 
 
-
-
 class general_cordic(rtl, spice, thesdk):
-    def __init__(self, *arg, mantissa_bits=12, fractional_bits=4, iterations=16):
+    def __init__(
+        self,
+        *arg,
+        mantissa_bits=12,
+        fractional_bits=4,
+        iterations=16,
+        function=trigonometric_function.SIN
+    ):
         """Inverter parameters and attributes
         Parameters
         ----------
             *arg :
             If any arguments are defined, the first one should be the
             parent instance
+
+            mantissa_bits :
+            How many mantissa bits are used in the fixed-point repr.
+
+            fractional_bits :
+            How many fractional bits are used in the fixed-point repr.
+
+            iterations :
+            How many iterations the CORDIC is supposed to have
+
+            function :
+            Which operation the CORDIC is calculating
 
         Attributes
         ----------
@@ -133,6 +151,7 @@ class general_cordic(rtl, spice, thesdk):
         self.mb = mantissa_bits
         self.fb = fractional_bits
         self.iters = iterations
+        self.function = function
 
         # this copies the parameter values from the parent based
         # on self.proplist
@@ -149,25 +168,6 @@ class general_cordic(rtl, spice, thesdk):
 
         """
         pass
-
-    def to_fixed_point(self, value: float):
-        (frac, integer) = modf(value)
-        frac_bits = floor((1 << self.fb) * frac)
-        return (
-            BitVector(intVal=int(integer), size=self.mb),
-            BitVector(intVal=frac_bits, size=self.fb),
-        )
-
-    def to_double(self, bit_vector: (BitVector, BitVector)):
-        integer = bit_vector[0].int_val()
-        frac = bit_vector[1].int_val() / (1 << self.fb)
-        return integer + frac
-
-    def calc_k(self):
-        k = 1
-        for i in range(0, self.iters):
-            k *= sqrt(1 + pow(2, -2 * i))
-        return k
 
     def main(self):
         """The main python description of the operation. Contents fully up to
@@ -196,14 +196,14 @@ class general_cordic(rtl, spice, thesdk):
 
         for i in range(0, x_in.size):
             dut.set_inputs(
-                self.to_fixed_point(x_in[i][0]),
-                self.to_fixed_point(y_in[i][0]),
-                self.to_fixed_point(z_in[i][0]),
+                methods.to_fixed_point(x_in[i][0], self.mb, self.fb),
+                methods.to_fixed_point(y_in[i][0], self.mb, self.fb),
+                methods.to_fixed_point(z_in[i][0], self.mb, self.fb),
             )
             dut.run()
-            self.IOS.Members["X_OUT"].Data[i] = self.to_double(dut.x_out)
-            self.IOS.Members["Y_OUT"].Data[i] = self.to_double(dut.y_out)
-            self.IOS.Members["Z_OUT"].Data[i] = self.to_double(dut.z_out)
+            self.IOS.Members["X_OUT"].Data[i] = methods.to_double(dut.x_out)
+            self.IOS.Members["Y_OUT"].Data[i] = methods.to_double(dut.y_out)
+            self.IOS.Members["Z_OUT"].Data[i] = methods.to_double(dut.z_out)
 
         # if self.par:
         #     self.queue.put(out)
@@ -347,6 +347,7 @@ class general_cordic(rtl, spice, thesdk):
 
 if __name__ == "__main__":
     import argparse
+    import matplotlib.pyplot as plt
 
     # import matplotlib.pyplot as plt
 
@@ -365,7 +366,7 @@ if __name__ == "__main__":
 
     models = ["py"]
     duts = []
-    functions = [trigonometric_function.SIN]
+    functions = [trigonometric_function.SIN, trigonometric_function.COS]
 
     mantissa_bits = 4
     frac_bits = 16
@@ -374,10 +375,7 @@ if __name__ == "__main__":
     max_value = 1
     n_values = 10
     # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
-    test_data = np.arange(0.0, np.pi/2, 0.01, dtype=float).reshape(-1, 1)
-    clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * len(test_data))]).reshape(
-        -1, 1
-    )
+    clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
 
     for model in models:
         for function in functions:
@@ -387,22 +385,53 @@ if __name__ == "__main__":
                 iterations=iterations,
             )
             dut.model = model
-            print("Input:\n")
-            print(test_data)
-            if function == trigonometric_function.SIN:
+            dut.function = function
+
+            if (
+                function == trigonometric_function.SIN
+                or function == trigonometric_function.COS
+            ):
+                test_data = np.arange(0.0, np.pi / 2, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(
-                    test_data.size, 1 / dut.calc_k()
+                    test_data.size, 1 / methods.calc_k(iterations)
                 ).reshape(-1, 1)
                 dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
                 dut.IOS.Members["Z_IN"].Data = test_data
+
             dut.IOS.Members["CLK"] = clk
             duts.append(dut)
 
     for dut in duts:
         dut.init()
         dut.run()
-        print("Output:\n")
-        print(dut.IOS.Members["X_OUT"].Data.reshape(-1, 1))
+
+        hfont = {"fontname": "Sans"}
+        fig, ax1 = plt.subplots()
+
+        if dut.function == trigonometric_function.SIN:
+            ax1.set_xlabel(r'$\theta$')
+            ax1.set_ylabel(r'$\sin(\theta)$')
+            ax1.set_title(f"{dut.model} sin")
+            test_data = dut.IOS.Members["Z_IN"].Data
+            reference = np.sin(test_data)
+            output = dut.IOS.Members["Y_OUT"].Data.reshape(-1, 1)
+        elif dut.function == trigonometric_function.COS:
+            ax1.set_xlabel(r'$\theta$')
+            ax1.set_ylabel(r'$\cos(\theta)$')
+            ax1.set_title(f"{dut.model} cos")
+            test_data = dut.IOS.Members["Z_IN"].Data
+            reference = np.cos(test_data)
+            output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
+
+        error = abs(output - reference)
+        ax1.plot(test_data, reference)
+        ax1.plot(test_data, output)
+        ax2 = ax1.twinx()
+        ax2.set_ylabel("|error|")
+        ax2.plot(test_data, error)
+        fig.tight_layout()
+        plt.draw()
+    plt.show()
 
     # length=2**8
     # rs=100e6

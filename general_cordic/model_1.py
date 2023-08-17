@@ -1,5 +1,5 @@
 from BitVector import BitVector
-from math import pow, modf, floor
+import methods
 
 # from general_cordic import rotation_type, cordic_mode
 
@@ -27,32 +27,6 @@ two_pow_lut = [
     pow(2, -7),
     pow(2, -8),
 ]
-
-
-class methods:
-    def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
-        (frac, integer) = modf(value)
-        frac_bits = floor((1 << float_bits) * frac)
-        return (
-            BitVector(intVal=int(integer), size=mantissa_bits),
-            BitVector(intVal=frac_bits, size=float_bits),
-        )
-
-    def to_double(bit_vector: (BitVector, BitVector), float_bits: int):
-        integer = bit_vector[0].int_val()
-        frac = bit_vector[1].int_val() / (1 << float_bits)
-        return integer + frac
-
-    def to_double_single(bit_vector: BitVector, mantissa_bits: int, float_bits: int):
-        if bit_vector[0]:
-            bt_vec = BitVector(intVal=((~bit_vector).int_val() + 1), size=(mantissa_bits + float_bits))
-            sign = -1
-        else:
-            bt_vec = bit_vector
-            sign = 1
-        integer = bt_vec[0:mantissa_bits].int_val()
-        frac = bt_vec[mantissa_bits:(mantissa_bits + float_bits)].int_val() / (1 << float_bits)
-        return sign * (integer + frac)
 
 
 class ripple_carry_adder:
@@ -154,11 +128,13 @@ class model_1:
             else:
                 atan_val = mant_one_vec.deep_copy().shift_right(i)
 
-            sing_ext_vec = (self.mb + self.fb) * [0]
+            # if the shifted value is negative,
+            # the shifted-in bits must be 1's instead of 0's
+            sign_ext_vec = (self.mb + self.fb) * [0]
             for j in range(0, self.mb + self.fb):
                 if j < i:
-                    sing_ext_vec[j] = 1
-            sign_ext_bit_vec = BitVector(bitlist=sing_ext_vec)
+                    sign_ext_vec[j] = 1
+            sign_ext_bit_vec = BitVector(bitlist=sign_ext_vec)
             x_shift_vec[i] = x_vec[i].deep_copy().shift_right(i)
             y_shift_vec[i] = y_vec[i].deep_copy().shift_right(i)
 
@@ -180,9 +156,9 @@ class model_1:
                 y_vec[i + 1] = self.adder.add(y_vec[i], x_c_vec[i])
                 z_vec[i + 1] = self.adder.add(z_vec[i], atan_val)
 
-        self.x_out = (x_vec[-1][0:self.mb], x_vec[-1][self.mb:(self.mb + self.fb)])
-        self.y_out = (y_vec[-1][0:self.mb], y_vec[-1][self.mb:(self.mb + self.fb)])
-        self.z_out = (z_vec[-1][0:self.mb], z_vec[-1][self.mb:(self.mb + self.fb)])
+        self.x_out = (x_vec[-1][0 : self.mb], x_vec[-1][self.mb : (self.mb + self.fb)])
+        self.y_out = (y_vec[-1][0 : self.mb], y_vec[-1][self.mb : (self.mb + self.fb)])
+        self.z_out = (z_vec[-1][0 : self.mb], z_vec[-1][self.mb : (self.mb + self.fb)])
 
 
 if __name__ == "__main__":
