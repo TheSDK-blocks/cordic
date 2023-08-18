@@ -71,6 +71,7 @@ class general_cordic(rtl, spice, thesdk):
         iterations=16,
         function=trigonometric_function.SIN,
         mode=cordic_types.cordic_mode.ROTATION,
+        rot_type=cordic_types.rotation_type.CIRCULAR
     ):
         """Inverter parameters and attributes
         Parameters
@@ -142,6 +143,7 @@ class general_cordic(rtl, spice, thesdk):
         self.iters = iterations
         self.function = function
         self.mode = mode
+        self.type = rot_type
 
         # this copies the parameter values from the parent based
         # on self.proplist
@@ -184,6 +186,7 @@ class general_cordic(rtl, spice, thesdk):
 
         dut = model_1(self.mb, self.fb, self.iters)
         dut.set_mode(self.mode)
+        dut.set_type(self.type)
 
         for i in range(0, x_in.size):
             dut.set_inputs(
@@ -365,7 +368,7 @@ if __name__ == "__main__":
 
     mantissa_bits = 4
     frac_bits = 12
-    iterations = 16
+    iterations = 14
 
     max_value = 1
     n_values = 10
@@ -393,6 +396,7 @@ if __name__ == "__main__":
                 dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
                 dut.IOS.Members["Z_IN"].Data = test_data
                 dut.mode = cordic_types.cordic_mode.ROTATION
+                dut.type = cordic_types.rotation_type.CIRCULAR
             elif function == trigonometric_function.ARCTAN:
                 test_data = np.arange(0.0, 1.0, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
@@ -401,6 +405,7 @@ if __name__ == "__main__":
                 dut.IOS.Members["Y_IN"].Data = test_data
                 dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
                 dut.mode = cordic_types.cordic_mode.VECTORING
+                dut.type = cordic_types.rotation_type.CIRCULAR
 
             dut.IOS.Members["CLK"] = clk
             duts.append(dut)
