@@ -363,8 +363,8 @@ if __name__ == "__main__":
         trigonometric_function.ARCTAN,
     ]
 
-    mantissa_bits = 2
-    frac_bits = 14
+    mantissa_bits = 4
+    frac_bits = 12
     iterations = 16
 
     max_value = 1

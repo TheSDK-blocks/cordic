@@ -121,10 +121,6 @@ class model_1:
         y_vec[0] = self.y_in[0] + self.y_in[1]
         z_vec[0] = self.z_in[0] + self.z_in[1]
 
-        x_c_vec[0] = self.adder.add(x_vec[0], one_vec)
-        y_c_vec[0] = self.adder.add(y_vec[0], one_vec)
-        z_c_vec[0] = self.adder.add(z_vec[0], one_vec)
-
         atan_lut_fp = []
         for i in range(0, lut_size):
             (man, flo) = methods.to_fixed_point(atan_lut[i], self.mb, self.fb)
@@ -139,26 +135,37 @@ class model_1:
 
             # if the shifted value is negative,
             # the shifted-in bits must be 1's instead of 0's
+            # Here we create a bitmask for OR'ing them into 1's if needed
             sign_ext_vec = (self.mb + self.fb) * [0]
             for j in range(0, self.mb + self.fb):
                 if j < i:
                     sign_ext_vec[j] = 1
             sign_ext_bit_vec = BitVector(bitlist=sign_ext_vec)
+
+            # Shifted versions
             x_shift_vec[i] = x_vec[i].deep_copy().shift_right(i)
             y_shift_vec[i] = y_vec[i].deep_copy().shift_right(i)
 
             # Shifted bits are 0's by default, so here we OR
             # them to be 1's if the value was negative
-            if x_vec[i][self.signbit] != self._d:
+            if x_vec[i][self.signbit] == 1:
                 x_shift_vec[i] |= sign_ext_bit_vec
-            if y_vec[i][self.signbit] != self._d:
+            if y_vec[i][self.signbit] == 1:
                 y_shift_vec[i] |= sign_ext_bit_vec
 
+            # Two's complement
             x_c_vec[i] = self.adder.add(~x_shift_vec[i], one_vec)
             y_c_vec[i] = self.adder.add(~y_shift_vec[i], one_vec)
             z_c_vec[i] = self.adder.add(~atan_val, one_vec)
 
-            if z_vec[i][self.signbit] == self._d:
+            # sigma = True means sigma = 1
+            # sigma = False measn sigma = -1
+            if self._mode == cordic_types.cordic_mode.ROTATION:
+                sigma = (z_vec[i][self.signbit] == 0)
+            elif self._mode == cordic_types.cordic_mode.VECTORING:
+                sigma = (y_vec[i][self.signbit] == 1)
+
+            if sigma:
                 x_vec[i + 1] = self.adder.add(x_vec[i], y_c_vec[i])
                 y_vec[i + 1] = self.adder.add(y_vec[i], x_shift_vec[i])
                 z_vec[i + 1] = self.adder.add(z_vec[i], z_c_vec[i])
