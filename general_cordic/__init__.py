@@ -364,6 +364,8 @@ if __name__ == "__main__":
         trigonometric_function.SIN,
         trigonometric_function.COS,
         trigonometric_function.ARCTAN,
+        trigonometric_function.SINH,
+        trigonometric_function.COSH
     ]
 
     mantissa_bits = 4
@@ -374,6 +376,7 @@ if __name__ == "__main__":
     n_values = 10
     # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
+    print(methods.calc_k(iterations))
 
     for model in models:
         for function in functions:
@@ -398,7 +401,7 @@ if __name__ == "__main__":
                 dut.mode = cordic_types.cordic_mode.ROTATION
                 dut.type = cordic_types.rotation_type.CIRCULAR
             elif function == trigonometric_function.ARCTAN:
-                test_data = np.arange(0.0, 1.0, 0.01, dtype=float).reshape(-1, 1)
+                test_data = np.arange(0.0, 1.1, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
                     -1, 1
                 )
@@ -406,6 +409,15 @@ if __name__ == "__main__":
                 dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
                 dut.mode = cordic_types.cordic_mode.VECTORING
                 dut.type = cordic_types.rotation_type.CIRCULAR
+            elif function == trigonometric_function.COSH or function == trigonometric_function.SINH:
+                test_data = np.arange(0.0, 1.1, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["X_IN"].Data = np.full(
+                    test_data.size, 1 / 0.82816  # methods.calc_k(iterations)
+                ).reshape(-1, 1)
+                dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
+                dut.IOS.Members["Z_IN"].Data = test_data
+                dut.mode = cordic_types.cordic_mode.ROTATION
+                dut.type = cordic_types.rotation_type.HYPERBOLIC
 
             dut.IOS.Members["CLK"] = clk
             duts.append(dut)
@@ -438,13 +450,27 @@ if __name__ == "__main__":
             test_data = dut.IOS.Members["Y_IN"].Data
             reference = np.arctan(test_data)
             output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
+        elif dut.function == trigonometric_function.SINH:
+            ax1.set_xlabel(r"$\theta$")
+            ax1.set_ylabel(r"$\sinh(\theta)$")
+            ax1.set_title(f"{dut.model} sinh")
+            test_data = dut.IOS.Members["Z_IN"].Data
+            reference = np.sinh(test_data)
+            output = dut.IOS.Members["Y_OUT"].Data.reshape(-1, 1)
+        elif dut.function == trigonometric_function.COSH:
+            ax1.set_xlabel(r"$\theta$")
+            ax1.set_ylabel(r"$\cosh(\theta)$")
+            ax1.set_title(f"{dut.model} cosh")
+            test_data = dut.IOS.Members["Z_IN"].Data
+            reference = np.cosh(test_data)
+            output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
 
         error = abs(output - reference)
         ax1.plot(test_data, reference)
         ax1.plot(test_data, output)
         ax2 = ax1.twinx()
         ax2.set_ylabel("|error|")
-        ax2.plot(test_data, error)
+        ax2.plot(test_data, error, color='red')
         fig.tight_layout()
         plt.draw()
     plt.show()

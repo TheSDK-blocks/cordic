@@ -146,7 +146,10 @@ class model_1:
             else:
                 atanh_lut_fp.append(BitVector(intVal=0, size=(self.mb + self.fb)))
 
-        lut_index_vec[0] = 0
+        if self._type == cordic_types.rotation_type.CIRCULAR:
+            lut_index_vec[0] = 0
+        elif self._type == cordic_types.rotation_type.HYPERBOLIC:
+            lut_index_vec[0] = 1
         repeats = 0
         repeat = False
 
@@ -214,6 +217,8 @@ class model_1:
             elif self._mode == cordic_types.cordic_mode.VECTORING:
                 sigma = y_vec[i][self.signbit] == 1
 
+            # m = True means m = 1
+            # m = False means m = -1
             if self._type == cordic_types.rotation_type.CIRCULAR:
                 m = True
             elif self._type == cordic_types.rotation_type.HYPERBOLIC:
@@ -236,7 +241,8 @@ class model_1:
             else:
                 lut_index_vec[i + 1] = lut_index_vec[i]
 
-        # import pdb; pdb.set_trace()
+        # if self._type == cordic_types.rotation_type.HYPERBOLIC:
+        #     import pdb; pdb.set_trace()
         self.x_out = (x_vec[-1][0 : self.mb], x_vec[-1][self.mb : (self.mb + self.fb)])
         self.y_out = (y_vec[-1][0 : self.mb], y_vec[-1][self.mb : (self.mb + self.fb)])
         self.z_out = (z_vec[-1][0 : self.mb], z_vec[-1][self.mb : (self.mb + self.fb)])
