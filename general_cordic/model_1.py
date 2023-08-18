@@ -162,8 +162,6 @@ class model_1:
 
             if (i == 0) and (self._type == cordic_types.rotation_type.HYPERBOLIC):
                 bypass = True
-            elif repeat and (self._type == cordic_types.rotation_type.CIRCULAR):
-                bypass = True
 
             # Values are simply moved forward, if:
             # - it is the 0th iteration of hyperbolic mode or
