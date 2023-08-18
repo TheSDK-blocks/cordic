@@ -1,11 +1,14 @@
 from BitVector import BitVector
 from math import modf, floor, sqrt
+from cordic_constants import hyperbolic_repeat_indices
 
 
 def calc_k(iters):
     k = 1
     for i in range(0, iters):
         k *= sqrt(1 + pow(2, -2 * i))
+#        if i in hyperbolic_repeat_indices:
+#            k *= sqrt(1 + pow(2, -2 * i))
     return k
 
 
