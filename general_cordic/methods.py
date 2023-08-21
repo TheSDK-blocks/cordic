@@ -1,6 +1,7 @@
 from BitVector import BitVector
 from math import modf, floor, sqrt
 from cordic_constants import hyperbolic_repeat_indices
+from bitstring import Bits
 
 
 def calc_k(iters):
@@ -18,12 +19,20 @@ def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
     Fixed point is represented as tuple (BitVector, BitVector),
     where index 0 holds mantissa and index 1 holds fractional part
     """
-    (frac, integer) = modf(value)
-    frac_bits = floor((1 << float_bits) * frac)
-    return (
-        BitVector(intVal=int(integer), size=mantissa_bits),
-        BitVector(intVal=frac_bits, size=float_bits),
-    )
+    # if value < 0:
+    #     import pdb; pdb.set_trace()
+    (frac, integer_signed) = modf(value)
+    sign = (integer_signed < 0)
+    integer = int(abs(integer_signed))
+    frac_bits = floor((1 << float_bits) * abs(frac))
+    bits = (integer << float_bits) | frac_bits
+    if sign:
+        bits *= -1
+    bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
+
+    # requires bitstring 4.1.0
+    bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
+    return bit_vec
 
 
 def to_double(bit_vector: (BitVector, BitVector)):

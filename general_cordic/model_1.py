@@ -50,18 +50,9 @@ class model_1:
         self.mb = mantissa_bits
         self.fb = frac_bits
         self.iters = iterations
-        self.x_in: (BitVector, BitVector) = (
-            BitVector(intVal=0, size=self.mb),
-            BitVector(intVal=0, size=self.fb),
-        )
-        self.y_in: (BitVector, BitVector) = (
-            BitVector(intVal=0, size=self.mb),
-            BitVector(intVal=0, size=self.fb),
-        )
-        self.z_in: (BitVector, BitVector) = (
-            BitVector(intVal=0, size=self.mb),
-            BitVector(intVal=0, size=self.fb),
-        )
+        self.x_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.y_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.z_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
         self.type = None
         self.set_mode(cordic_types.cordic_mode.ROTATION)
         self.set_type(cordic_types.rotation_type.CIRCULAR)
@@ -77,16 +68,15 @@ class model_1:
 
     def set_inputs(
         self,
-        x_in: (BitVector, BitVector),
-        y_in: (BitVector, BitVector),
-        z_in: (BitVector, BitVector),
+        x_in: BitVector,
+        y_in: BitVector,
+        z_in: BitVector,
     ):
         self.x_in = x_in
         self.y_in = y_in
         self.z_in = z_in
 
     def run(self):
-
         # Calculate number of repeats
         # Can usually be 2 or 3 depending whether there are less or
         # more than 40 iterations
@@ -130,19 +120,19 @@ class model_1:
         mant_one_vec = BitVector(intVal=1, size=(self.mb + self.fb)) << self.fb
 
         # Concatenate mantissa and fraction
-        x_vec[0] = self.x_in[0] + self.x_in[1]
-        y_vec[0] = self.y_in[0] + self.y_in[1]
-        z_vec[0] = self.z_in[0] + self.z_in[1]
+        x_vec[0] = self.x_in
+        y_vec[0] = self.y_in
+        z_vec[0] = self.z_in
 
         # Convert floats into fixed-point representation
         atan_lut_fp = []
         atanh_lut_fp = []
         for i in range(0, len(atan_lut)):
-            (man, flo) = methods.to_fixed_point(atan_lut[i], self.mb, self.fb)
-            atan_lut_fp.append(man + flo)
+            fx_pnt = methods.to_fixed_point(atan_lut[i], self.mb, self.fb)
+            atan_lut_fp.append(fx_pnt)
             if i != 0:
-                (man2, flo2) = methods.to_fixed_point(atanh_lut[i], self.mb, self.fb)
-                atanh_lut_fp.append(man2 + flo2)
+                fx_pnt2 = methods.to_fixed_point(atanh_lut[i], self.mb, self.fb)
+                atanh_lut_fp.append(fx_pnt2)
             else:
                 atanh_lut_fp.append(BitVector(intVal=0, size=(self.mb + self.fb)))
 
@@ -154,7 +144,6 @@ class model_1:
         repeat = False
 
         for i in range(0, self.iters + n_repeats):
-
             bypass = False
 
             if (i - repeats) in hyperbolic_repeat_indices and not repeat:
@@ -243,9 +232,9 @@ class model_1:
 
         # if self._type == cordic_types.rotation_type.HYPERBOLIC:
         #     import pdb; pdb.set_trace()
-        self.x_out = (x_vec[-1][0 : self.mb], x_vec[-1][self.mb : (self.mb + self.fb)])
-        self.y_out = (y_vec[-1][0 : self.mb], y_vec[-1][self.mb : (self.mb + self.fb)])
-        self.z_out = (z_vec[-1][0 : self.mb], z_vec[-1][self.mb : (self.mb + self.fb)])
+        self.x_out = x_vec[-1]
+        self.y_out = y_vec[-1]
+        self.z_out = z_vec[-1]
 
 
 if __name__ == "__main__":

@@ -195,9 +195,15 @@ class general_cordic(rtl, spice, thesdk):
                 methods.to_fixed_point(z_in[i][0], self.mb, self.fb),
             )
             dut.run()
-            self.IOS.Members["X_OUT"].Data[i] = methods.to_double(dut.x_out)
-            self.IOS.Members["Y_OUT"].Data[i] = methods.to_double(dut.y_out)
-            self.IOS.Members["Z_OUT"].Data[i] = methods.to_double(dut.z_out)
+            self.IOS.Members["X_OUT"].Data[i] = methods.to_double_single(
+                dut.x_out, self.mb, self.fb
+            )
+            self.IOS.Members["Y_OUT"].Data[i] = methods.to_double_single(
+                dut.y_out, self.mb, self.fb
+            )
+            self.IOS.Members["Z_OUT"].Data[i] = methods.to_double_single(
+                dut.z_out, self.mb, self.fb
+            )
 
         # if self.par:
         #     self.queue.put(out)
@@ -368,6 +374,7 @@ if __name__ == "__main__":
         trigonometric_function.COSH,
         trigonometric_function.ARCTANH,
         trigonometric_function.EXPONENTIAL,
+        trigonometric_function.LOG,
     ]
 
     mantissa_bits = 4
@@ -378,7 +385,6 @@ if __name__ == "__main__":
     n_values = 10
     # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
-    print(methods.calc_k(iterations))
 
     for model in models:
         for function in functions:
@@ -394,7 +400,7 @@ if __name__ == "__main__":
                 function == trigonometric_function.SIN
                 or function == trigonometric_function.COS
             ):
-                test_data = np.arange(0.0, np.pi / 2, 0.01, dtype=float).reshape(-1, 1)
+                test_data = np.arange(0, np.pi / 2, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(
                     test_data.size, 1 / methods.calc_k(iterations)
                 ).reshape(-1, 1)
@@ -442,6 +448,15 @@ if __name__ == "__main__":
                 ).reshape(-1, 1)
                 dut.IOS.Members["Z_IN"].Data = test_data
                 dut.mode = cordic_types.cordic_mode.ROTATION
+                dut.type = cordic_types.rotation_type.HYPERBOLIC
+            elif function == trigonometric_function.LOG:
+                test_data = np.arange(1.0, 3.0, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["X_IN"].Data = test_data + 1.0
+                dut.IOS.Members["Y_IN"].Data = test_data - 1.0
+                dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0.0).reshape(
+                    -1, 1
+                )
+                dut.mode = cordic_types.cordic_mode.VECTORING
                 dut.type = cordic_types.rotation_type.HYPERBOLIC
 
             dut.IOS.Members["CLK"] = clk
@@ -503,13 +518,22 @@ if __name__ == "__main__":
             test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.exp(test_data)
             output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
+        elif dut.function == trigonometric_function.LOG:
+            ax1.set_xlabel(r"a")
+            ax1.set_ylabel(r"0.5 ln (a)")
+            ax1.set_title(f"{dut.model} log")
+            test_data = dut.IOS.Members["X_IN"].Data - 1.0
+            reference = 0.5 * np.log(test_data)
+            output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
 
         error = abs(output - reference)
-        ax1.plot(test_data, reference)
-        ax1.plot(test_data, output)
+        ax1.plot(test_data, reference, label="reference")
+        ax1.plot(test_data, output, label="cordic")
         ax2 = ax1.twinx()
         ax2.set_ylabel("|error|")
-        ax2.plot(test_data, error, color="red")
+        ax2.plot(test_data, error, color="red", label="error")
+        ax1.legend(loc=2)
+        ax2.legend(loc=1)
         fig.tight_layout()
         plt.draw()
     plt.show()
