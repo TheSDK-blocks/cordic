@@ -366,7 +366,8 @@ if __name__ == "__main__":
         trigonometric_function.ARCTAN,
         trigonometric_function.SINH,
         trigonometric_function.COSH,
-        trigonometric_function.ARCTANH
+        trigonometric_function.ARCTANH,
+        trigonometric_function.EXPONENTIAL,
     ]
 
     mantissa_bits = 4
@@ -431,6 +432,17 @@ if __name__ == "__main__":
                 dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
                 dut.mode = cordic_types.cordic_mode.VECTORING
                 dut.type = cordic_types.rotation_type.HYPERBOLIC
+            elif function == trigonometric_function.EXPONENTIAL:
+                test_data = np.arange(0.0, 0.8, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["X_IN"].Data = np.full(
+                    test_data.size, 1 / 0.82816
+                ).reshape(-1, 1)
+                dut.IOS.Members["Y_IN"].Data = np.full(
+                    test_data.size, 1 / 0.82816
+                ).reshape(-1, 1)
+                dut.IOS.Members["Z_IN"].Data = test_data
+                dut.mode = cordic_types.cordic_mode.ROTATION
+                dut.type = cordic_types.rotation_type.HYPERBOLIC
 
             dut.IOS.Members["CLK"] = clk
             duts.append(dut)
@@ -484,6 +496,13 @@ if __name__ == "__main__":
             test_data = dut.IOS.Members["Y_IN"].Data
             reference = np.arctanh(test_data)
             output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
+        elif dut.function == trigonometric_function.EXPONENTIAL:
+            ax1.set_xlabel(r"$\theta$")
+            ax1.set_ylabel(r"$e^{\theta}$")
+            ax1.set_title(f"{dut.model} exp")
+            test_data = dut.IOS.Members["Z_IN"].Data
+            reference = np.exp(test_data)
+            output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
 
         error = abs(output - reference)
         ax1.plot(test_data, reference)
