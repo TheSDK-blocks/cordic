@@ -416,9 +416,9 @@ if __name__ == "__main__":
                 dut.mode = cordic_types.cordic_mode.ROTATION
                 dut.type = cordic_types.rotation_type.CIRCULAR
             elif function == trigonometric_function.ARCTAN:
-                mantissa_bits = 4
-                fractional_bits = 12
-                test_data = np.arange(0.0, 1.1, 0.01, dtype=float).reshape(-1, 1)
+                mantissa_bits = 5
+                fractional_bits = 11
+                test_data = np.arange(-3*np.pi, 3*np.pi, 0.1, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
                     -1, 1
                 )
@@ -432,7 +432,7 @@ if __name__ == "__main__":
             ):
                 mantissa_bits = 2
                 fractional_bits = 14
-                test_data = np.arange(0.0, 1.1, 0.01, dtype=float).reshape(-1, 1)
+                test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(
                     test_data.size, 1 / 0.82816  # methods.calc_k(iterations)
                 ).reshape(-1, 1)
@@ -443,7 +443,7 @@ if __name__ == "__main__":
             elif function == trigonometric_function.ARCTANH:
                 mantissa_bits = 2
                 fractional_bits = 14
-                test_data = np.arange(0.0, 0.8, 0.01, dtype=float).reshape(-1, 1)
+                test_data = np.arange(-0.8, 0.8, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
                     -1, 1
                 )
@@ -454,7 +454,7 @@ if __name__ == "__main__":
             elif function == trigonometric_function.EXPONENTIAL:
                 mantissa_bits = 4
                 fractional_bits = 12
-                test_data = np.arange(0.0, 1.1, 0.01, dtype=float).reshape(-1, 1)
+                test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = np.full(
                     test_data.size, 1 / 0.82816
                 ).reshape(-1, 1)
@@ -467,7 +467,7 @@ if __name__ == "__main__":
             elif function == trigonometric_function.LOG:
                 mantissa_bits = 5
                 fractional_bits = 11
-                test_data = np.arange(1.0, 9.0, 0.01, dtype=float).reshape(-1, 1)
+                test_data = np.arange(0.15, 9.0, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["X_IN"].Data = test_data + 1.0
                 dut.IOS.Members["Y_IN"].Data = test_data - 1.0
                 dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0.0).reshape(
