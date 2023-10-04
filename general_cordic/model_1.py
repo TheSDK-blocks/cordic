@@ -1,7 +1,17 @@
+import os
+import sys
 from BitVector import BitVector
-import methods
-import cordic_types
-from cordic_constants import atan_lut, atanh_lut, hyperbolic_repeat_indices
+
+if not (os.path.abspath("../cordic_common") in sys.path):
+    sys.path.append(os.path.abspath("../cordic_common"))
+
+import cordic_common.methods as methods
+import cordic_common.cordic_types as cordic_types
+from cordic_common.cordic_constants import (
+    atan_lut,
+    atanh_lut,
+    hyperbolic_repeat_indices,
+)
 
 two_pow_lut = [
     pow(2, 0),

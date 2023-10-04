@@ -1,10 +1,16 @@
+import os
+import sys
 from BitVector import BitVector
 from math import modf, floor, sqrt
-from cordic_constants import hyperbolic_repeat_indices
 from bitstring import Bits
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if not (os.path.abspath(SCRIPT_DIR) in sys.path):
+    sys.path.append(os.path.abspath(SCRIPT_DIR))
 
 
 def calc_k(iters):
+    from cordic_constants import hyperbolic_repeat_indices
     k = 1
     for i in range(0, iters):
         k *= sqrt(1 + pow(2, -2 * i))
@@ -19,8 +25,6 @@ def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
     Fixed point is represented as tuple (BitVector, BitVector),
     where index 0 holds mantissa and index 1 holds fractional part
     """
-    # if value < 0:
-    #     import pdb; pdb.set_trace()
     (frac, integer_signed) = modf(value)
     sign = (integer_signed < 0)
     integer = int(abs(integer_signed))
@@ -29,7 +33,6 @@ def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
     if sign:
         bits *= -1
     bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
-
     # requires bitstring 4.1.0
     bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
     return bit_vec
