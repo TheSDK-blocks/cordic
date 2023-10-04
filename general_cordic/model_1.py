@@ -57,6 +57,21 @@ class ripple_carry_adder:
 
 class model_1:
     def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
+        """model_1 is a simple generic CORDIC model without any tricks to improve
+        CORDIC attributes such as precision, range, iteration count etc.
+        Selectable rotation/vectoring circular/hyperbolic modes.
+        Selectable fixed point location.
+
+        Usage: feed input values to `self.x_in`, `self.y_in`, and `self.z_in`
+        as BitVector's.
+        Select mode and type. Run `self.run()`. Collect outputs from
+        `self.x_out`, `self.y_out`, and `self.z_out`.
+
+        Args:
+            mantissa_bits (int): How many mantissa bits are used
+            frac_bits (int): How many fractional bits are used
+            iterations (int): How many CORDIC iterations are run
+        """
         self.mb = mantissa_bits
         self.fb = frac_bits
         self.iters = iterations
