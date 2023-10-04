@@ -392,7 +392,7 @@ if __name__ == "__main__":
     for model in models:
         for function in functions:
             dut = general_cordic(
-                mantissa_bits=10,    # placeholder
+                mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
                 iterations=iterations,
             )
@@ -403,9 +403,11 @@ if __name__ == "__main__":
                 function == trigonometric_function.SIN
                 or function == trigonometric_function.COS
             ):
-                mantissa_bits = 2
-                fractional_bits = 14
-                test_data = np.arange(0, np.pi / 2, 0.01, dtype=float).reshape(-1, 1)
+                mantissa_bits = 3
+                fractional_bits = 15
+                test_data = np.arange(-np.pi / 2, np.pi / 2, 0.01, dtype=float).reshape(
+                    -1, 1
+                )
                 dut.IOS.Members["X_IN"].Data = np.full(
                     test_data.size, 1 / methods.calc_k(iterations)
                 ).reshape(-1, 1)

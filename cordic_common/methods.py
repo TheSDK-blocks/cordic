@@ -26,7 +26,7 @@ def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
     where index 0 holds mantissa and index 1 holds fractional part
     """
     (frac, integer_signed) = modf(value)
-    sign = (integer_signed < 0)
+    sign = (value < 0)
     integer = int(abs(integer_signed))
     frac_bits = floor((1 << float_bits) * abs(frac))
     bits = (integer << float_bits) | frac_bits

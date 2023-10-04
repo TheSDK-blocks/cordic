@@ -240,8 +240,6 @@ class model_1:
             else:
                 lut_index_vec[i + 1] = lut_index_vec[i]
 
-        # if self._type == cordic_types.rotation_type.HYPERBOLIC:
-        #     import pdb; pdb.set_trace()
         self.x_out = x_vec[-1]
         self.y_out = y_vec[-1]
         self.z_out = z_vec[-1]
