@@ -5,57 +5,18 @@ from BitVector import BitVector
 if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
 
+from model import cordic_model
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
+from cordic_common.ripple_carry_adder import ripple_carry_adder
 from cordic_common.cordic_constants import (
     atan_lut,
     atanh_lut,
     hyperbolic_repeat_indices,
 )
 
-two_pow_lut = [
-    pow(2, 0),
-    pow(2, -1),
-    pow(2, -2),
-    pow(2, -3),
-    pow(2, -4),
-    pow(2, -5),
-    pow(2, -6),
-    pow(2, -7),
-    pow(2, -8),
-]
 
-
-class ripple_carry_adder:
-    def __init__(self, bits: int, endianness: str = "big"):
-        self.bits = bits
-        assert endianness in [
-            "big",
-            "little",
-        ], "Endianness must be either 'big' or 'little'"
-        self.endianness = endianness
-
-    def add(self, input_a: BitVector, input_b: BitVector):
-        if self.endianness == "big":
-            dir = -1
-            offs = 1
-        else:
-            dir = 1
-            offs = 0
-
-        S_vec = self.bits * [0]
-        C_vec = (self.bits + 1) * [0]
-        for i in range(0, self.bits):
-            S_vec[i] = input_a[dir * i - offs] ^ input_b[dir * i - offs] ^ C_vec[i]
-            C_vec[i + 1] = (input_a[dir * i - offs] & input_b[dir * i - offs]) + (
-                C_vec[i] & (input_a[dir * i - offs] ^ input_b[dir * i - offs])
-            )
-        if self.endianness == "big":
-            S_vec.reverse()
-        return BitVector(bitlist=S_vec)
-
-
-class model_1:
+class model_1(cordic_model):
     def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
         """model_1 is a simple generic CORDIC model without any tricks to improve
         CORDIC attributes such as precision, range, iteration count etc.
