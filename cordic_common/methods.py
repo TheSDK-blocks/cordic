@@ -4,18 +4,26 @@ from BitVector import BitVector
 from math import modf, floor, sqrt
 from bitstring import Bits
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if not (os.path.abspath(SCRIPT_DIR) in sys.path):
-    sys.path.append(os.path.abspath(SCRIPT_DIR))
+if not (os.path.dirname(os.path.abspath(__file__)) in sys.path):
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from cordic_types import rotation_type
 
 
-def calc_k(iters):
+def calc_k(iters, rot_type: rotation_type):
     from cordic_constants import hyperbolic_repeat_indices
+
+    i_init = 0 if rot_type == rotation_type.CIRCULAR else 1
     k = 1
-    for i in range(0, iters):
-        k *= sqrt(1 + pow(2, -2 * i))
-        if i in hyperbolic_repeat_indices:
-            k *= sqrt(1 + pow(2, -2 * i))
+    for i in range(i_init, iters):
+        sqrtee = (
+            1 + pow(2, -2 * i)
+            if rot_type == rotation_type.CIRCULAR
+            else 1 - pow(2, -2 * i)
+        )
+        k *= sqrt(sqrtee)
+        if i in hyperbolic_repeat_indices and rot_type == rotation_type.HYPERBOLIC:
+            k *= sqrt(sqrtee)
     return k
 
 
@@ -26,7 +34,7 @@ def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
     where index 0 holds mantissa and index 1 holds fractional part
     """
     (frac, integer_signed) = modf(value)
-    sign = (value < 0)
+    sign = value < 0
     integer = int(abs(integer_signed))
     frac_bits = floor((1 << float_bits) * abs(frac))
     bits = (integer << float_bits) | frac_bits
