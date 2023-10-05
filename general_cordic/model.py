@@ -9,22 +9,24 @@ import cordic_common.cordic_types as cordic_types
 
 
 class cordic_model:
-    def __init__(self):
-        pass
+    def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
+        """
+        Args:
+            mantissa_bits (int): How many mantissa bits are used
+            frac_bits (int): How many fractional bits are used
+            iterations (int): How many CORDIC iterations are run
+        """
+        # Config parameters
+        self.mb = mantissa_bits
+        self.fb = frac_bits
+        self.iters = iterations
 
-    def set_mode(self, mode: cordic_types.cordic_mode):
-        raise NotImplementedError
-
-    def set_type(self, cordic_type: cordic_types.rotation_type):
-        raise NotImplementedError
-
-    def set_inputs(
-        self,
-        x_in: BitVector,
-        y_in: BitVector,
-        z_in: BitVector,
-    ):
-        raise NotImplementedError
+        # IOs
+        self.d_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.op: cordic_types.trigonometric_function = (
+            cordic_types.trigonometric_function.SIN
+        )
+        self.d_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
 
     def run(self):
         raise NotImplementedError

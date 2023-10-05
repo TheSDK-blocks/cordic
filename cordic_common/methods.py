@@ -22,7 +22,7 @@ def calc_k(iters, rot_type: rotation_type):
             else 1 - pow(2, -2 * i)
         )
         k *= sqrt(sqrtee)
-        if i in hyperbolic_repeat_indices and rot_type == rotation_type.HYPERBOLIC:
+        if i in hyperbolic_repeat_indices:
             k *= sqrt(sqrtee)
     return k
 

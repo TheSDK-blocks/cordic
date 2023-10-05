@@ -1,6 +1,7 @@
 import os
 import sys
 from BitVector import BitVector
+from numpy import pi
 
 if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
@@ -20,49 +21,112 @@ class model_1(cordic_model):
     def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
         """model_1 is a simple generic CORDIC model without any tricks to improve
         CORDIC attributes such as precision, range, iteration count etc.
-        Selectable rotation/vectoring circular/hyperbolic modes.
-        Selectable fixed point location.
-
-        Usage: feed input values to `self.x_in`, `self.y_in`, and `self.z_in`
-        as BitVector's.
-        Select mode and type. Run `self.run()`. Collect outputs from
-        `self.x_out`, `self.y_out`, and `self.z_out`.
 
         Args:
             mantissa_bits (int): How many mantissa bits are used
             frac_bits (int): How many fractional bits are used
             iterations (int): How many CORDIC iterations are run
         """
-        self.mb = mantissa_bits
-        self.fb = frac_bits
-        self.iters = iterations
-        self.x_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
-        self.y_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
-        self.z_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
-        self.type = None
-        self.set_mode(cordic_types.cordic_mode.ROTATION)
-        self.set_type(cordic_types.rotation_type.CIRCULAR)
+        super().__init__(mantissa_bits, frac_bits, iterations)
 
-        self.signbit = 0
-        self.adder = ripple_carry_adder(bits=self.mb + self.fb)
+        # Private members
+        self._x_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self._y_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self._z_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self._x_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self._y_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self._z_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self._type = None
+        self._mode = None
+        self._signbit = 0
+        self._adder = ripple_carry_adder(bits=self.mb + self.fb)
 
-    def set_mode(self, mode: cordic_types.cordic_mode):
-        self._mode = mode
+    def preprocess(self):
+        mant_one_vec = methods.to_fixed_point(1.0, self.mb, self.fb)
+        mant_one_comp_vec = methods.to_fixed_point(-1.0, self.mb, self.fb)
+        zero_vec = BitVector(intVal=0, size=(self.mb + self.fb))
+        K_vec = methods.to_fixed_point(
+            1 / methods.calc_k(self.iters, cordic_types.rotation_type.CIRCULAR),
+            self.mb,
+            self.fb,
+        )
+        Kh_vec = methods.to_fixed_point(
+            1 / methods.calc_k(self.iters, cordic_types.rotation_type.HYPERBOLIC),
+            self.mb,
+            self.fb,
+        )
 
-    def set_type(self, cordic_type: cordic_types.rotation_type):
-        self._type = cordic_type
+        addee = mant_one_vec
+        subbee = mant_one_comp_vec
 
-    def set_inputs(
-        self,
-        x_in: BitVector,
-        y_in: BitVector,
-        z_in: BitVector,
-    ):
-        self.x_in = x_in
-        self.y_in = y_in
-        self.z_in = z_in
+        d_in_add = self._adder.add(self.d_in, addee)
+        d_in_sub = self._adder.add(self.d_in, subbee)
+
+        if (
+            self.op == cordic_types.trigonometric_function.SIN
+            or self.op == cordic_types.trigonometric_function.COS
+        ):
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.CIRCULAR
+            self._x_in = K_vec
+            self._y_in = zero_vec
+            self._z_in = self.d_in
+        elif (
+            self.op == cordic_types.trigonometric_function.ARCTAN
+            or self.op == cordic_types.trigonometric_function.ARCTANH
+        ):
+            self._mode = cordic_types.cordic_mode.VECTORING
+            self._type = (
+                cordic_types.rotation_type.CIRCULAR
+                if self.op == cordic_types.trigonometric_function.ARCTAN
+                else cordic_types.rotation_type.HYPERBOLIC
+            )
+            self._x_in = mant_one_vec
+            self._y_in = self.d_in
+            self._z_in = zero_vec
+        elif (
+            self.op == cordic_types.trigonometric_function.SINH
+            or self.op == cordic_types.trigonometric_function.COSH
+        ):
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in = Kh_vec
+            self._y_in = zero_vec
+            self._z_in = self.d_in
+        elif self.op == cordic_types.trigonometric_function.EXPONENTIAL:
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in = Kh_vec
+            self._y_in = Kh_vec
+            self._z_in = self.d_in
+        elif self.op == cordic_types.trigonometric_function.LOG:
+            self._mode = cordic_types.cordic_mode.VECTORING
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in = d_in_add
+            self._y_in = d_in_sub
+            self._z_in = zero_vec
+
+    def postprocess(self):
+        if self.op == cordic_types.trigonometric_function.SIN:
+            self.d_out = self._y_out
+        elif self.op == cordic_types.trigonometric_function.COS:
+            self.d_out = self._x_out
+        elif self.op == cordic_types.trigonometric_function.ARCTAN:
+            self.d_out = self._z_out
+        elif self.op == cordic_types.trigonometric_function.SINH:
+            self.d_out = self._y_out
+        elif self.op == cordic_types.trigonometric_function.COSH:
+            self.d_out = self._x_out
+        elif self.op == cordic_types.trigonometric_function.ARCTANH:
+            self.d_out = self._z_out
+        elif self.op == cordic_types.trigonometric_function.EXPONENTIAL:
+            self.d_out = self._x_out
+        elif self.op == cordic_types.trigonometric_function.LOG:
+            self.d_out = self._z_out
 
     def run(self):
+        self.preprocess()
+
         # Calculate number of repeats
         # Can usually be 2 or 3 depending whether there are less or
         # more than 40 iterations
@@ -106,9 +170,9 @@ class model_1(cordic_model):
         mant_one_vec = BitVector(intVal=1, size=(self.mb + self.fb)) << self.fb
 
         # Concatenate mantissa and fraction
-        x_vec[0] = self.x_in
-        y_vec[0] = self.y_in
-        z_vec[0] = self.z_in
+        x_vec[0] = self._x_in
+        y_vec[0] = self._y_in
+        z_vec[0] = self._z_in
 
         # Convert floats into fixed-point representation
         atan_lut_fp = []
@@ -142,8 +206,7 @@ class model_1(cordic_model):
                 bypass = True
 
             # Values are simply moved forward, if:
-            # - it is the 0th iteration of hyperbolic mode or
-            # - it is a repeat index and circular mode (is this necessary?)
+            # - it is the 0th iteration of hyperbolic mode
             if bypass:
                 x_vec[i + 1] = x_vec[i]
                 y_vec[i + 1] = y_vec[i]
@@ -175,22 +238,22 @@ class model_1(cordic_model):
 
             # Shifted bits are 0's by default, so here we OR
             # them to be 1's if the value was negative
-            if x_vec[i][self.signbit] == 1:
+            if x_vec[i][self._signbit] == 1:
                 x_shift_vec[i] |= sign_ext_bit_vec
-            if y_vec[i][self.signbit] == 1:
+            if y_vec[i][self._signbit] == 1:
                 y_shift_vec[i] |= sign_ext_bit_vec
 
             # Two's complement
-            x_c_vec[i] = self.adder.add(~x_shift_vec[i], one_vec)
-            y_c_vec[i] = self.adder.add(~y_shift_vec[i], one_vec)
-            z_c_vec[i] = self.adder.add(~atan_val_vec[i], one_vec)
+            x_c_vec[i] = self._adder.add(~x_shift_vec[i], one_vec)
+            y_c_vec[i] = self._adder.add(~y_shift_vec[i], one_vec)
+            z_c_vec[i] = self._adder.add(~atan_val_vec[i], one_vec)
 
             # sigma = True means sigma = 1
             # sigma = False means sigma = -1
             if self._mode == cordic_types.cordic_mode.ROTATION:
-                sigma = z_vec[i][self.signbit] == 0
+                sigma = z_vec[i][self._signbit] == 0
             elif self._mode == cordic_types.cordic_mode.VECTORING:
-                sigma = y_vec[i][self.signbit] == 1
+                sigma = y_vec[i][self._signbit] == 1
 
             # m = True means m = 1
             # m = False means m = -1
@@ -200,25 +263,26 @@ class model_1(cordic_model):
                 m = False
 
             if sigma ^ m:
-                x_vec[i + 1] = self.adder.add(x_vec[i], y_shift_vec[i])
+                x_vec[i + 1] = self._adder.add(x_vec[i], y_shift_vec[i])
             else:
-                x_vec[i + 1] = self.adder.add(x_vec[i], y_c_vec[i])
+                x_vec[i + 1] = self._adder.add(x_vec[i], y_c_vec[i])
 
             if sigma:
-                y_vec[i + 1] = self.adder.add(y_vec[i], x_shift_vec[i])
-                z_vec[i + 1] = self.adder.add(z_vec[i], z_c_vec[i])
+                y_vec[i + 1] = self._adder.add(y_vec[i], x_shift_vec[i])
+                z_vec[i + 1] = self._adder.add(z_vec[i], z_c_vec[i])
             else:
-                y_vec[i + 1] = self.adder.add(y_vec[i], x_c_vec[i])
-                z_vec[i + 1] = self.adder.add(z_vec[i], atan_val_vec[i])
+                y_vec[i + 1] = self._adder.add(y_vec[i], x_c_vec[i])
+                z_vec[i + 1] = self._adder.add(z_vec[i], atan_val_vec[i])
 
             if not repeat:
                 lut_index_vec[i + 1] = lut_index_vec[i] + 1
             else:
                 lut_index_vec[i + 1] = lut_index_vec[i]
 
-        self.x_out = x_vec[-1]
-        self.y_out = y_vec[-1]
-        self.z_out = z_vec[-1]
+        self._x_out = x_vec[-1]
+        self._y_out = y_vec[-1]
+        self._z_out = z_vec[-1]
+        self.postprocess()
 
 
 if __name__ == "__main__":

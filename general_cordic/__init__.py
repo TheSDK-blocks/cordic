@@ -50,19 +50,7 @@ import numpy as np
 from model_1 import model_1
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
-
-
-class trigonometric_function:
-    SIN = 0
-    COS = 1
-    ARCSIN = 2
-    ARCCOS = 3
-    ARCTAN = 4
-    SINH = 5
-    COSH = 6
-    ARCTANH = 7
-    EXPONENTIAL = 8
-    LOG = 9
+from cordic_common.cordic_types import trigonometric_function
 
 
 class general_cordic(rtl, spice, thesdk):
@@ -129,12 +117,9 @@ class general_cordic(rtl, spice, thesdk):
         self.Rs = 100e6  # Sampling frequency
         self.vdd = 1.0
 
-        self.IOS.Members["X_IN"] = IO()
-        self.IOS.Members["Y_IN"] = IO()
-        self.IOS.Members["Z_IN"] = IO()
-        self.IOS.Members["X_OUT"] = IO()
-        self.IOS.Members["Y_OUT"] = IO()
-        self.IOS.Members["Z_OUT"] = IO()
+        self.IOS.Members["D_IN"] = IO()
+        self.IOS.Members["OP"] = IO()
+        self.IOS.Members["D_OUT"] = IO()
 
         self.IOS.Members["CLK"] = IO()
         self.IOS.Members["RST"] = IO()
@@ -176,36 +161,21 @@ class general_cordic(rtl, spice, thesdk):
         3) Assign local variable to output
 
         """
-        x_in: np.ndarray = self.IOS.Members["X_IN"].Data
-        y_in: np.ndarray = self.IOS.Members["Y_IN"].Data
-        z_in: np.ndarray = self.IOS.Members["Z_IN"].Data
+        d_in: np.ndarray = self.IOS.Members["D_IN"].Data
+        ops: np.ndarray = self.IOS.Members["OP"].Data
 
-        assert x_in.size == y_in.size, "Input vectors must be same size!"
-        assert x_in.size == z_in.size, "Input vectors must be same size!"
+        assert d_in.size == ops.size, "Input vectors must be same size!"
 
-        self.IOS.Members["X_OUT"].Data = np.zeros(x_in.size)
-        self.IOS.Members["Y_OUT"].Data = np.zeros(x_in.size)
-        self.IOS.Members["Z_OUT"].Data = np.zeros(x_in.size)
+        self.IOS.Members["D_OUT"].Data = np.zeros(d_in.size)
 
         dut = model_1(self.mb, self.fb, self.iters)
-        dut.set_mode(self.mode)
-        dut.set_type(self.type)
 
-        for i in range(0, x_in.size):
-            dut.set_inputs(
-                methods.to_fixed_point(x_in[i][0], self.mb, self.fb),
-                methods.to_fixed_point(y_in[i][0], self.mb, self.fb),
-                methods.to_fixed_point(z_in[i][0], self.mb, self.fb),
-            )
+        for i in range(0, d_in.size):
+            dut.d_in = methods.to_fixed_point(d_in[i], self.mb, self.fb)
+            dut.op = ops[i]
             dut.run()
-            self.IOS.Members["X_OUT"].Data[i] = methods.to_double_single(
-                dut.x_out, self.mb, self.fb
-            )
-            self.IOS.Members["Y_OUT"].Data[i] = methods.to_double_single(
-                dut.y_out, self.mb, self.fb
-            )
-            self.IOS.Members["Z_OUT"].Data[i] = methods.to_double_single(
-                dut.z_out, self.mb, self.fb
+            self.IOS.Members["D_OUT"].Data[i] = methods.to_double_single(
+                dut.d_out, self.mb, self.fb
             )
 
         # if self.par:
@@ -380,8 +350,8 @@ if __name__ == "__main__":
         trigonometric_function.LOG,
     ]
 
-    mantissa_bits = 2
-    frac_bits = 12
+    mantissa_bits = 4
+    fractional_bits = 12
     iterations = 14
 
     max_value = 1
@@ -403,78 +373,48 @@ if __name__ == "__main__":
                 function == trigonometric_function.SIN
                 or function == trigonometric_function.COS
             ):
-                mantissa_bits = 3
-                fractional_bits = 15
                 test_data = np.arange(-np.pi / 2, np.pi / 2, 0.01, dtype=float).reshape(
                     -1, 1
                 )
-                dut.IOS.Members["X_IN"].Data = np.full(
-                    test_data.size, 1 / methods.calc_k(iterations)
-                ).reshape(-1, 1)
-                dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
-                dut.IOS.Members["Z_IN"].Data = test_data
-                dut.mode = cordic_types.cordic_mode.ROTATION
-                dut.type = cordic_types.rotation_type.CIRCULAR
-            elif function == trigonometric_function.ARCTAN:
-                mantissa_bits = 5
-                fractional_bits = 11
-                test_data = np.arange(-3*np.pi, 3*np.pi, 0.1, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
+                dut.IOS.Members["D_IN"].Data = test_data
+                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
                     -1, 1
                 )
-                dut.IOS.Members["Y_IN"].Data = test_data
-                dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
-                dut.mode = cordic_types.cordic_mode.VECTORING
-                dut.type = cordic_types.rotation_type.CIRCULAR
+            elif function == trigonometric_function.ARCTAN:
+                test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(
+                    -1, 1
+                )
+                dut.IOS.Members["D_IN"].Data = test_data
+                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
+                    -1, 1
+                )
             elif (
                 function == trigonometric_function.COSH
                 or function == trigonometric_function.SINH
             ):
-                mantissa_bits = 2
-                fractional_bits = 14
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["X_IN"].Data = np.full(
-                    test_data.size, 1 / 0.82816  # methods.calc_k(iterations)
-                ).reshape(-1, 1)
-                dut.IOS.Members["Y_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
-                dut.IOS.Members["Z_IN"].Data = test_data
-                dut.mode = cordic_types.cordic_mode.ROTATION
-                dut.type = cordic_types.rotation_type.HYPERBOLIC
+                dut.IOS.Members["D_IN"].Data = test_data
+                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
+                    -1, 1
+                )
             elif function == trigonometric_function.ARCTANH:
-                mantissa_bits = 2
-                fractional_bits = 14
                 test_data = np.arange(-0.8, 0.8, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["X_IN"].Data = np.full(test_data.size, 1.0).reshape(
+                dut.IOS.Members["D_IN"].Data = test_data
+                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
                     -1, 1
                 )
-                dut.IOS.Members["Y_IN"].Data = test_data
-                dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0).reshape(-1, 1)
-                dut.mode = cordic_types.cordic_mode.VECTORING
-                dut.type = cordic_types.rotation_type.HYPERBOLIC
             elif function == trigonometric_function.EXPONENTIAL:
-                mantissa_bits = 4
-                fractional_bits = 12
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["X_IN"].Data = np.full(
-                    test_data.size, 1 / 0.82816
-                ).reshape(-1, 1)
-                dut.IOS.Members["Y_IN"].Data = np.full(
-                    test_data.size, 1 / 0.82816
-                ).reshape(-1, 1)
-                dut.IOS.Members["Z_IN"].Data = test_data
-                dut.mode = cordic_types.cordic_mode.ROTATION
-                dut.type = cordic_types.rotation_type.HYPERBOLIC
-            elif function == trigonometric_function.LOG:
-                mantissa_bits = 5
-                fractional_bits = 11
-                test_data = np.arange(0.15, 9.0, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["X_IN"].Data = test_data + 1.0
-                dut.IOS.Members["Y_IN"].Data = test_data - 1.0
-                dut.IOS.Members["Z_IN"].Data = np.full(test_data.size, 0.0).reshape(
+                dut.IOS.Members["D_IN"].Data = test_data
+                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
                     -1, 1
                 )
-                dut.mode = cordic_types.cordic_mode.VECTORING
-                dut.type = cordic_types.rotation_type.HYPERBOLIC
+            elif function == trigonometric_function.LOG:
+                test_data = np.arange(0.15, 3.0, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["D_IN"].Data = test_data
+                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
+                    -1, 1
+                )
 
             dut.mb = mantissa_bits
             dut.fb = fractional_bits
@@ -490,63 +430,49 @@ if __name__ == "__main__":
         fig, ax1 = plt.subplots()
 
         bits_info = f" mb={dut.mb}, fb={dut.fb}"
+        test_data = dut.IOS.Members["D_IN"].Data
+        output = dut.IOS.Members["D_OUT"].Data.reshape(-1, 1)
 
         if dut.function == trigonometric_function.SIN:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\sin(\theta)$")
             ax1.set_title(f"{dut.model} sin" + bits_info)
-            test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.sin(test_data)
-            output = dut.IOS.Members["Y_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.COS:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\cos(\theta)$")
             ax1.set_title(f"{dut.model} cos" + bits_info)
-            test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.cos(test_data)
-            output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.ARCTAN:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\arctan(\theta)$")
             ax1.set_title(f"{dut.model} arctan" + bits_info)
-            test_data = dut.IOS.Members["Y_IN"].Data
             reference = np.arctan(test_data)
-            output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.SINH:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\sinh(\theta)$")
             ax1.set_title(f"{dut.model} sinh" + bits_info)
-            test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.sinh(test_data)
-            output = dut.IOS.Members["Y_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.COSH:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\cosh(\theta)$")
             ax1.set_title(f"{dut.model} cosh" + bits_info)
-            test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.cosh(test_data)
-            output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.ARCTANH:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$arctanh(\theta)$")
             ax1.set_title(f"{dut.model} arctanh" + bits_info)
-            test_data = dut.IOS.Members["Y_IN"].Data
             reference = np.arctanh(test_data)
-            output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.EXPONENTIAL:
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$e^{\theta}$")
             ax1.set_title(f"{dut.model} exp" + bits_info)
-            test_data = dut.IOS.Members["Z_IN"].Data
             reference = np.exp(test_data)
-            output = dut.IOS.Members["X_OUT"].Data.reshape(-1, 1)
         elif dut.function == trigonometric_function.LOG:
             ax1.set_xlabel(r"a")
             ax1.set_ylabel(r"0.5 ln (a)")
             ax1.set_title(f"{dut.model} log" + bits_info)
-            test_data = dut.IOS.Members["X_IN"].Data - 1.0
             reference = 0.5 * np.log(test_data)
-            output = dut.IOS.Members["Z_OUT"].Data.reshape(-1, 1)
 
         error = abs(output - reference)
         ax1.plot(test_data, reference, label="reference")

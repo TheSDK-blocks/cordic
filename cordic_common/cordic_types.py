@@ -15,3 +15,16 @@ class cordic_mode:
 
     ROTATION = 0
     VECTORING = 1
+
+
+class trigonometric_function:
+    SIN = 0
+    COS = 1
+    ARCSIN = 2
+    ARCCOS = 3
+    ARCTAN = 4
+    SINH = 5
+    COSH = 6
+    ARCTANH = 7
+    EXPONENTIAL = 8
+    LOG = 9
