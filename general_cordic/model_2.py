@@ -8,7 +8,7 @@ if not (os.path.abspath("../cordic_common") in sys.path):
 from model import cordic_model
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
-from cordic_common.ripple_carry_adder import ripple_carry_adder
+from cordic_common.adder_subtractor import adder_subtractor
 from cordic_common.cordic_constants import (
     atan_lut,
     atanh_lut,
@@ -16,10 +16,12 @@ from cordic_common.cordic_constants import (
 )
 
 
-class model_1(cordic_model):
+class model_2(cordic_model):
     def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
-        """model_1 is a simple generic CORDIC model without any tricks to improve
-        CORDIC attributes such as precision, range, iteration count etc.
+        """model_2 improves from model_1 by:
+        - using adder-subtractor instead of converting to two's complement
+        - extending sine/cosine range from -+ pi/2 to +- pi
+        - multiplying log result by two (bit shift)
 
         Args:
             mantissa_bits (int): How many mantissa bits are used
@@ -38,7 +40,7 @@ class model_1(cordic_model):
         self._type = None
         self._mode = None
         self._signbit = 0
-        self._adder = ripple_carry_adder(bits=self.mb + self.fb)
+        self._adder = adder_subtractor(bits=self.mb + self.fb)
 
     def preprocess(self):
         mant_one_vec = methods.to_fixed_point(1.0, self.mb, self.fb)
@@ -145,15 +147,6 @@ class model_1(cordic_model):
         z_vec = (self.iters + n_repeats + 1) * [
             BitVector(intVal=0, size=(self.mb + self.fb))
         ]
-        x_c_vec = (self.iters + n_repeats + 1) * [
-            BitVector(intVal=0, size=(self.mb + self.fb))
-        ]
-        y_c_vec = (self.iters + n_repeats + 1) * [
-            BitVector(intVal=0, size=(self.mb + self.fb))
-        ]
-        z_c_vec = (self.iters + n_repeats + 1) * [
-            BitVector(intVal=0, size=(self.mb + self.fb))
-        ]
         x_shift_vec = (self.iters + n_repeats + 1) * [
             BitVector(intVal=0, size=(self.mb + self.fb))
         ]
@@ -165,7 +158,6 @@ class model_1(cordic_model):
         ]
         lut_index_vec = (self.iters + n_repeats + 1) * [0]
 
-        one_vec = BitVector(intVal=1, size=(self.mb + self.fb))
         mant_one_vec = BitVector(intVal=1, size=(self.mb + self.fb)) << self.fb
 
         # Concatenate mantissa and fraction
@@ -242,11 +234,6 @@ class model_1(cordic_model):
             if y_vec[i][self._signbit] == 1:
                 y_shift_vec[i] |= sign_ext_bit_vec
 
-            # Two's complement
-            x_c_vec[i] = self._adder.add(~x_shift_vec[i], one_vec)
-            y_c_vec[i] = self._adder.add(~y_shift_vec[i], one_vec)
-            z_c_vec[i] = self._adder.add(~atan_val_vec[i], one_vec)
-
             # sigma = True means sigma = 1
             # sigma = False means sigma = -1
             if self._mode == cordic_types.cordic_mode.ROTATION:
@@ -264,13 +251,13 @@ class model_1(cordic_model):
             if sigma ^ m:
                 x_vec[i + 1] = self._adder.add(x_vec[i], y_shift_vec[i])
             else:
-                x_vec[i + 1] = self._adder.add(x_vec[i], y_c_vec[i])
+                x_vec[i + 1] = self._adder.sub(x_vec[i], y_shift_vec[i])
 
             if sigma:
                 y_vec[i + 1] = self._adder.add(y_vec[i], x_shift_vec[i])
-                z_vec[i + 1] = self._adder.add(z_vec[i], z_c_vec[i])
+                z_vec[i + 1] = self._adder.sub(z_vec[i], atan_val_vec[i])
             else:
-                y_vec[i + 1] = self._adder.add(y_vec[i], x_c_vec[i])
+                y_vec[i + 1] = self._adder.sub(y_vec[i], x_shift_vec[i])
                 z_vec[i + 1] = self._adder.add(z_vec[i], atan_val_vec[i])
 
             if not repeat:
@@ -282,11 +269,3 @@ class model_1(cordic_model):
         self._y_out = y_vec[-1]
         self._z_out = z_vec[-1]
         self.postprocess()
-
-
-if __name__ == "__main__":
-    rca = ripple_carry_adder(16)
-    a = BitVector(intVal=0, size=16)
-    b = BitVector(intVal=2, size=16)
-    ans = rca.add(a, b)
-    print(f"a: {a.int_val()}, b: {b.int_val()}, ans: {ans.int_val()}")

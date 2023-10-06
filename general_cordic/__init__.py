@@ -48,6 +48,7 @@ from spice import spice
 import numpy as np
 
 from model_1 import model_1
+from model_2 import model_2
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
 from cordic_common.cordic_types import trigonometric_function
@@ -168,7 +169,7 @@ class general_cordic(rtl, spice, thesdk):
 
         self.IOS.Members["D_OUT"].Data = np.zeros(d_in.size)
 
-        dut = model_1(self.mb, self.fb, self.iters)
+        dut = model_2(self.mb, self.fb, self.iters)
 
         for i in range(0, d_in.size):
             dut.d_in = methods.to_fixed_point(d_in[i], self.mb, self.fb)
