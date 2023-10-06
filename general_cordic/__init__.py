@@ -471,9 +471,9 @@ if __name__ == "__main__":
             reference = np.exp(test_data)
         elif dut.function == trigonometric_function.LOG:
             ax1.set_xlabel(r"a")
-            ax1.set_ylabel(r"0.5 ln (a)")
+            ax1.set_ylabel(r"ln (a)")
             ax1.set_title(f"{dut.model} log" + bits_info)
-            reference = 0.5 * np.log(test_data)
+            reference = np.log(test_data)
 
         error = abs(output - reference)
         ax1.plot(test_data, reference, label="reference")

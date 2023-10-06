@@ -42,11 +42,11 @@ class model_2(cordic_model):
         self._mode = None
         self._signbit = 0
         self._invert_res = False
+        self._mul_by_2 = False
         self._adder = adder_subtractor(bits=self.mb + self.fb)
 
     def preprocess(self):
         mant_one_vec = methods.to_fixed_point(1.0, self.mb, self.fb)
-        mant_one_comp_vec = methods.to_fixed_point(-1.0, self.mb, self.fb)
         zero_vec = BitVector(intVal=0, size=(self.mb + self.fb))
         K_vec = methods.to_fixed_point(
             1 / methods.calc_k(self.iters, cordic_types.rotation_type.CIRCULAR),
@@ -66,6 +66,7 @@ class model_2(cordic_model):
 
         sincos_addsub = 0
         self._invert_res = False
+        self._mul_by_2 = False
 
         if (
             self.op == cordic_types.trigonometric_function.SIN
@@ -83,6 +84,7 @@ class model_2(cordic_model):
                 addee = zero_vec
         elif self.op == cordic_types.trigonometric_function.LOG:
             addee = mant_one_vec
+            self._mul_by_2 = True
         else:
             addee = zero_vec
 
@@ -151,8 +153,11 @@ class model_2(cordic_model):
         elif self.op == cordic_types.trigonometric_function.LOG:
             d_out = self._z_out
         d_out_c = self._adder.add(~d_out, BitVector(intVal=1, size=self.mb + self.fb))
+        d_out_shifted = d_out.deep_copy() << 1
         if self._invert_res:
             self.d_out = d_out_c
+        elif self._mul_by_2:
+            self.d_out = d_out_shifted
         else:
             self.d_out = d_out
 
