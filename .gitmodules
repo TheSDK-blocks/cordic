@@ -1,0 +1,3 @@
+[submodule "chisel"]
+	path = chisel
+	url = git@gitlab.com:a-core/a-core_chisel/cordicaccelerator.git
