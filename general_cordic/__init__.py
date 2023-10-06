@@ -374,7 +374,7 @@ if __name__ == "__main__":
                 function == trigonometric_function.SIN
                 or function == trigonometric_function.COS
             ):
-                test_data = np.arange(-np.pi / 2, np.pi / 2, 0.01, dtype=float).reshape(
+                test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(
                     -1, 1
                 )
                 dut.IOS.Members["D_IN"].Data = test_data

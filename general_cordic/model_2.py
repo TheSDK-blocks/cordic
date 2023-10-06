@@ -1,6 +1,7 @@
 import os
 import sys
 from BitVector import BitVector
+from numpy import pi
 
 if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
@@ -20,7 +21,7 @@ class model_2(cordic_model):
     def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
         """model_2 improves from model_1 by:
         - using adder-subtractor instead of converting to two's complement
-        - extending sine/cosine range from -+ pi/2 to +- pi
+        - extending sine/cosine range from -+ pi/2 to -+ pi
         - multiplying log result by two (bit shift)
 
         Args:
@@ -40,6 +41,7 @@ class model_2(cordic_model):
         self._type = None
         self._mode = None
         self._signbit = 0
+        self._invert_res = False
         self._adder = adder_subtractor(bits=self.mb + self.fb)
 
     def preprocess(self):
@@ -56,12 +58,36 @@ class model_2(cordic_model):
             self.mb,
             self.fb,
         )
+        pi_vec = methods.to_fixed_point(
+            pi,
+            self.mb,
+            self.fb,
+        )
 
-        addee = mant_one_vec
-        subbee = mant_one_comp_vec
+        sincos_addsub = 0
+        self._invert_res = False
+
+        if (
+            self.op == cordic_types.trigonometric_function.SIN
+            or self.op == cordic_types.trigonometric_function.COS
+        ):
+            # TODO: what is the efficient way to do this in hardware??
+            if methods.to_double_single(self.d_in, self.mb, self.fb) > pi/2:
+                addee = pi_vec
+                sincos_addsub = 1
+                self._invert_res = True
+            elif methods.to_double_single(self.d_in, self.mb, self.fb) < -pi/2:
+                addee = pi_vec
+                self._invert_res = True
+            else:
+                addee = zero_vec
+        elif self.op == cordic_types.trigonometric_function.LOG:
+            addee = mant_one_vec
+        else:
+            addee = zero_vec
 
         d_in_add = self._adder.add(self.d_in, addee)
-        d_in_sub = self._adder.add(self.d_in, subbee)
+        d_in_sub = self._adder.sub(self.d_in, addee)
 
         if (
             self.op == cordic_types.trigonometric_function.SIN
@@ -71,7 +97,7 @@ class model_2(cordic_model):
             self._type = cordic_types.rotation_type.CIRCULAR
             self._x_in = K_vec
             self._y_in = zero_vec
-            self._z_in = self.d_in
+            self._z_in = d_in_add if sincos_addsub == 0 else d_in_sub
         elif (
             self.op == cordic_types.trigonometric_function.ARCTAN
             or self.op == cordic_types.trigonometric_function.ARCTANH
@@ -83,7 +109,7 @@ class model_2(cordic_model):
                 else cordic_types.rotation_type.HYPERBOLIC
             )
             self._x_in = mant_one_vec
-            self._y_in = self.d_in
+            self._y_in = d_in_add
             self._z_in = zero_vec
         elif (
             self.op == cordic_types.trigonometric_function.SINH
@@ -93,13 +119,13 @@ class model_2(cordic_model):
             self._type = cordic_types.rotation_type.HYPERBOLIC
             self._x_in = Kh_vec
             self._y_in = zero_vec
-            self._z_in = self.d_in
+            self._z_in = d_in_add
         elif self.op == cordic_types.trigonometric_function.EXPONENTIAL:
             self._mode = cordic_types.cordic_mode.ROTATION
             self._type = cordic_types.rotation_type.HYPERBOLIC
             self._x_in = Kh_vec
             self._y_in = Kh_vec
-            self._z_in = self.d_in
+            self._z_in = d_in_add
         elif self.op == cordic_types.trigonometric_function.LOG:
             self._mode = cordic_types.cordic_mode.VECTORING
             self._type = cordic_types.rotation_type.HYPERBOLIC
@@ -109,21 +135,26 @@ class model_2(cordic_model):
 
     def postprocess(self):
         if self.op == cordic_types.trigonometric_function.SIN:
-            self.d_out = self._y_out
+            d_out = self._y_out
         elif self.op == cordic_types.trigonometric_function.COS:
-            self.d_out = self._x_out
+            d_out = self._x_out
         elif self.op == cordic_types.trigonometric_function.ARCTAN:
-            self.d_out = self._z_out
+            d_out = self._z_out
         elif self.op == cordic_types.trigonometric_function.SINH:
-            self.d_out = self._y_out
+            d_out = self._y_out
         elif self.op == cordic_types.trigonometric_function.COSH:
-            self.d_out = self._x_out
+            d_out = self._x_out
         elif self.op == cordic_types.trigonometric_function.ARCTANH:
-            self.d_out = self._z_out
+            d_out = self._z_out
         elif self.op == cordic_types.trigonometric_function.EXPONENTIAL:
-            self.d_out = self._x_out
+            d_out = self._x_out
         elif self.op == cordic_types.trigonometric_function.LOG:
-            self.d_out = self._z_out
+            d_out = self._z_out
+        d_out_c = self._adder.add(~d_out, BitVector(intVal=1, size=self.mb + self.fb))
+        if self._invert_res:
+            self.d_out = d_out_c
+        else:
+            self.d_out = d_out
 
     def run(self):
         self.preprocess()
