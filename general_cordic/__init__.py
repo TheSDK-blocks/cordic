@@ -47,7 +47,7 @@ from spice import spice
 
 import numpy as np
 
-from model_1 import model_1
+# from model_1 import model_1
 from model_2 import model_2
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types

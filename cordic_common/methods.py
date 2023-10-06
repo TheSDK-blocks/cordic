@@ -71,7 +71,7 @@ def to_double_single(bit_vector: BitVector, mantissa_bits: int, float_bits: int)
         bt_vec = bit_vector
         sign = 1
     integer = bt_vec[0:mantissa_bits].int_val()
-    frac = bt_vec[mantissa_bits : (mantissa_bits + float_bits)].int_val() / (
+    frac = bt_vec[mantissa_bits: (mantissa_bits + float_bits)].int_val() / (
         1 << float_bits
     )
     return sign * (integer + frac)
