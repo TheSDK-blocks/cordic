@@ -14,24 +14,34 @@ echo "Generating Makefile"
 
 cat << EOF > ${THISDIR}/Makefile
 
-#.PHONY: all sim chisel clean
-.PHONY: all sim doc clean
+.PHONY: all sim chisel clean
 
 #all: chisel sim
 all: sim
 
-#sim: chisel
-sim:
+models ?= py
+mantissa_bits ?= 4
+fraction_bits ?= 12
+iterations ?= 14
+cordic_ops ?= Sine,Cosine
+
+MAINPARAMS_PY = --models \$(models) --mantissa-bits \$(mantissa_bits) --fraction-bits \$(fraction_bits) \\
+--iterations \$(iterations) --cordic-ops \$(cordic_ops)
+
+chisel/Makefile:
+	cd chisel && ./configure
+
+sim: chisel chisel/Makefile
 	cd ${THISDIR}/${MODULE} && \\
-	${PYL} __init__.py || (echo "make sim failed $$?"; exit 1)
+	${PYL} __init__.py \$(MAINPARAMS_PY) || (echo "make sim failed $$?"; exit 1)
 
 show:
 	cd ${THISDIR}/${MODULE} && \\
 	${PYL} __init__.py --show || (echo "make sim failed $$?"; exit 1)
 
-#chisel:
-#	cd $THISDIR/chisel && \\
-#	make
+chisel:
+	cd $THISDIR/chisel && \\
+	\$(MAKE) CordicAccelerator VERILOGDIR=${THISDIR}/sv
 
 doc:
 	cd $THISDIR/doc && \\

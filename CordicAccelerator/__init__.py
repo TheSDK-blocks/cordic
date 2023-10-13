@@ -41,7 +41,7 @@ if not (os.path.abspath("../../thesdk") in sys.path):
 if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
 
-from thesdk import thesdk, IO
+from thesdk import IO, thesdk
 from rtl import rtl, rtl_iofile
 from spice import spice
 
@@ -315,25 +315,25 @@ class CordicAccelerator(rtl, spice, thesdk):
             if self.par:
                 self.queue.put(self.IOS.Members)
 
-    def define_io_conditions(self):
-        """This overloads the method called by run_rtl method. It defines
-        the read/write conditions for the files
+    # def define_io_conditions(self):
+    #     """This overloads the method called by run_rtl method. It defines
+    #     the read/write conditions for the files
 
-        """
-        if self.lang == "sv":
-            # Input A is read to verilog simulation after 'initdone' is set to
-            # 1 by controller
-            self.iofile_bundle.Members["A"].rtl_io_condition = "initdone"
-            # Output is read to verilog simulation when all of the outputs are
-            # valid, and after 'initdone' is set to 1 by controller
-            self.iofile_bundle.Members["Z"].rtl_io_condition_append(cond="&& initdone")
-        elif self.lang == "vhdl":
-            self.iofile_bundle.Members["A"].rtl_io_condition = "(initdone = '1')"
-            # Output is read to verilog simulation when all of the outputs
-            # are valid, and after 'initdone' is set to 1 by controller
-            self.iofile_bundle.Members["Z"].rtl_io_condition_append(
-                cond="and initdone = '1'"
-            )
+    #     """
+    #     if self.lang == "sv":
+    #         # Input A is read to verilog simulation after 'initdone' is set to
+    #         # 1 by controller
+    #         self.iofile_bundle.Members["A"].rtl_io_condition = "initdone"
+    #         # Output is read to verilog simulation when all of the outputs are
+    #         # valid, and after 'initdone' is set to 1 by controller
+    #         self.iofile_bundle.Members["Z"].rtl_io_condition_append(cond="&& initdone")
+    #     elif self.lang == "vhdl":
+    #         self.iofile_bundle.Members["A"].rtl_io_condition = "(initdone = '1')"
+    #         # Output is read to verilog simulation when all of the outputs
+    #         # are valid, and after 'initdone' is set to 1 by controller
+    #         self.iofile_bundle.Members["Z"].rtl_io_condition_append(
+    #             cond="and initdone = '1'"
+    #         )
 
 
 if __name__ == "__main__":
@@ -450,7 +450,7 @@ if __name__ == "__main__":
             dut.mb = mantissa_bits
             dut.fb = fractional_bits
 
-            dut.IOS.Members["clock"] = clk
+            dut.IOS.Members["clock"].Data = clk
             duts.append(dut)
 
     for dut in duts:
