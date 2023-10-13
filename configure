@@ -31,7 +31,7 @@ MAINPARAMS_PY = --models \$(models) --mantissa-bits \$(mantissa_bits) --fraction
 chisel/Makefile:
 	cd chisel && ./configure
 
-sim: chisel chisel/Makefile
+sim: chisel
 	cd ${THISDIR}/${MODULE} && \\
 	${PYL} __init__.py \$(MAINPARAMS_PY) || (echo "make sim failed $$?"; exit 1)
 
@@ -39,7 +39,7 @@ show:
 	cd ${THISDIR}/${MODULE} && \\
 	${PYL} __init__.py --show || (echo "make sim failed $$?"; exit 1)
 
-chisel:
+chisel: chisel/Makefile
 	cd $THISDIR/chisel && \\
 	\$(MAKE) CordicAccelerator VERILOGDIR=${THISDIR}/sv
 
