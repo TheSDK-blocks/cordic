@@ -51,17 +51,16 @@ import numpy as np
 from model_2 import model_2
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
-from cordic_common.cordic_types import trigonometric_function
 
 
-class general_cordic(rtl, spice, thesdk):
+class CordicAccelerator(rtl, spice, thesdk):
     def __init__(
         self,
         *arg,
         mantissa_bits=12,
         fractional_bits=4,
         iterations=16,
-        function=trigonometric_function.SIN,
+        function="Sine",
         mode=cordic_types.cordic_mode.ROTATION,
         rot_type=cordic_types.rotation_type.CIRCULAR,
     ):
@@ -118,12 +117,16 @@ class general_cordic(rtl, spice, thesdk):
         self.Rs = 100e6  # Sampling frequency
         self.vdd = 1.0
 
-        self.IOS.Members["D_IN"] = IO()
-        self.IOS.Members["OP"] = IO()
-        self.IOS.Members["D_OUT"] = IO()
+        self.IOS.Members["io_in_valid"] = IO()
+        self.IOS.Members["io_in_bits_rs1"] = IO()
+        self.IOS.Members["io_in_bits_rs2"] = IO()
+        self.IOS.Members["io_in_bits_rs3"] = IO()
+        self.IOS.Members["io_in_bits_op"] = IO()
+        self.IOS.Members["io_out_bits_dataOut"] = IO()
+        self.IOS.Members["io_out_valid"] = IO()
 
-        self.IOS.Members["CLK"] = IO()
-        self.IOS.Members["RST"] = IO()
+        self.IOS.Members["clock"] = IO()
+        self.IOS.Members["reset"] = IO()
 
         self.model = "py"  # Can be set externalouly, but is not propagated
 
@@ -162,12 +165,12 @@ class general_cordic(rtl, spice, thesdk):
         3) Assign local variable to output
 
         """
-        d_in: np.ndarray = self.IOS.Members["D_IN"].Data
-        ops: np.ndarray = self.IOS.Members["OP"].Data
+        d_in: np.ndarray = self.IOS.Members["io_in_bits_rs1"].Data
+        ops: np.ndarray = self.IOS.Members["io_in_bits_op"].Data
 
         assert d_in.size == ops.size, "Input vectors must be same size!"
 
-        self.IOS.Members["D_OUT"].Data = np.zeros(d_in.size)
+        self.IOS.Members["io_out_bits_dataOut"].Data = np.zeros(d_in.size)
 
         dut = model_2(self.mb, self.fb, self.iters)
 
@@ -175,7 +178,7 @@ class general_cordic(rtl, spice, thesdk):
             dut.d_in = methods.to_fixed_point(d_in[i], self.mb, self.fb)
             dut.op = ops[i]
             dut.run()
-            self.IOS.Members["D_OUT"].Data[i] = methods.to_double_single(
+            self.IOS.Members["io_out_bits_dataOut"].Data[i] = methods.to_double_single(
                 dut.d_out, self.mb, self.fb
             )
 
@@ -237,25 +240,36 @@ class general_cordic(rtl, spice, thesdk):
                 # Verilog simulation options here
                 _ = rtl_iofile(
                     self,
-                    name="A",
+                    name="io_in_bits_rs1",
                     dir="in",
                     iotype="sample",
-                    ionames=["A"],
+                    ionames=["io_in_bits_rs1"],
+                    datatype="sint",
+                )
+                _ = rtl_iofile(
+                    self,
+                    name="io_in_bits_op",
+                    dir="in",
+                    iotype="sample",
+                    ionames=["io_in_bits_op"],
+                    datatype="sint",
+                )
+                _ = rtl_iofile(
+                    self,
+                    name="io_in_valid",
+                    dir="in",
+                    iotype="sample",
+                    ionames=["io_in_valid"],
                     datatype="sint",
                 )
                 f = rtl_iofile(
                     self,
-                    name="Z",
+                    name="io_out_bits_dataOut",
                     dir="out",
                     iotype="sample",
-                    ionames=["Z"],
+                    ionames=["io_out_bits_dataOut"],
                     datatype="sint",
                 )
-                # This is to avoid sampling time confusion with Icarus
-                if self.lang == "sv":
-                    f.rtl_io_sync = "@(negedge clock)"
-                elif self.lang == "vhdl":
-                    f.rtl_io_sync = "falling_edge(clock)"
 
                 # Defines the sample rate
                 self.rtlparameters = dict(
@@ -264,8 +278,11 @@ class general_cordic(rtl, spice, thesdk):
                     ]
                 )
                 self.run_rtl()
-                self.IOS.Members["Z"].Data = (
-                    self.IOS.Members["Z"].Data[:, 0].astype(int).reshape(-1, 1)
+                self.IOS.Members["io_out_bits_dataOut"].Data = (
+                    self.IOS.Members["io_out_bits_dataOut"]
+                    .Data[:, 0]
+                    .astype(int)
+                    .reshape(-1, 1)
                 )
             elif self.model == "vhdl" or self.model == "ghdl":
                 # VHDL simulation options here
@@ -323,7 +340,8 @@ if __name__ == "__main__":
     import argparse
     import matplotlib.pyplot as plt
 
-    # import matplotlib.pyplot as plt
+    def comma_separated_type(value):
+        return value.split(',')
 
     # Implement argument parser
     parser = argparse.ArgumentParser(description="Parse selectors")
@@ -336,20 +354,36 @@ if __name__ == "__main__":
         default=False,
         help="Show figures on screen",
     )
+    parser.add_argument(
+        "--models",
+        help="Models to run",
+        choices=["py", "sv"],
+        nargs="+",
+    )
+    parser.add_argument(
+        "--mantissa-bits",
+        help="Mantissa bits",
+        type=int,
+    )
+    parser.add_argument(
+        "--fraction-bits",
+        help="Fraction bits",
+        type=int,
+    )
+    parser.add_argument(
+        "--iterations",
+        help=("Number of iterations to run"),
+        type=int,
+    )
+    parser.add_argument(
+        "--cordic-ops",
+        help="Cordic operations enabled",
+        type=comma_separated_type,
+    )
     args = parser.parse_args()
 
-    models = ["py"]
+    models = args.models
     duts = []
-    functions = [
-        trigonometric_function.SIN,
-        trigonometric_function.COS,
-        trigonometric_function.ARCTAN,
-        trigonometric_function.SINH,
-        trigonometric_function.COSH,
-        trigonometric_function.ARCTANH,
-        trigonometric_function.EXPONENTIAL,
-        trigonometric_function.LOG,
-    ]
 
     mantissa_bits = 4
     fractional_bits = 12
@@ -361,8 +395,8 @@ if __name__ == "__main__":
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
 
     for model in models:
-        for function in functions:
-            dut = general_cordic(
+        for function in args.cordic_ops:
+            dut = CordicAccelerator(
                 mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
                 iterations=iterations,
@@ -371,56 +405,52 @@ if __name__ == "__main__":
             dut.function = function
 
             if (
-                function == trigonometric_function.SIN
-                or function == trigonometric_function.COS
+                function == "Sine"
+                or function == "Cosine"
             ):
-                test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(
-                    -1, 1
-                )
-                dut.IOS.Members["D_IN"].Data = test_data
-                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
-                    -1, 1
-                )
-            elif function == trigonometric_function.ARCTAN:
-                test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(
-                    -1, 1
-                )
-                dut.IOS.Members["D_IN"].Data = test_data
-                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
-                    -1, 1
-                )
+                test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
+                dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                    test_data.size, function
+                ).reshape(-1, 1)
+            elif function == "Arctan":
+                test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
+                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
+                dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                    test_data.size, function
+                ).reshape(-1, 1)
             elif (
-                function == trigonometric_function.COSH
-                or function == trigonometric_function.SINH
+                function == "Cosh"
+                or function == "Sinh"
             ):
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["D_IN"].Data = test_data
-                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
-                    -1, 1
-                )
-            elif function == trigonometric_function.ARCTANH:
+                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
+                dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                    test_data.size, function
+                ).reshape(-1, 1)
+            elif function == "Arctanh":
                 test_data = np.arange(-0.8, 0.8, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["D_IN"].Data = test_data
-                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
-                    -1, 1
-                )
-            elif function == trigonometric_function.EXPONENTIAL:
+                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
+                dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                    test_data.size, function
+                ).reshape(-1, 1)
+            elif function == "Exponential":
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["D_IN"].Data = test_data
-                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
-                    -1, 1
-                )
-            elif function == trigonometric_function.LOG:
+                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
+                dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                    test_data.size, function
+                ).reshape(-1, 1)
+            elif function == "Log":
                 test_data = np.arange(0.15, 3.0, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["D_IN"].Data = test_data
-                dut.IOS.Members["OP"].Data = np.full(test_data.size, function).reshape(
-                    -1, 1
-                )
+                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
+                dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                    test_data.size, function
+                ).reshape(-1, 1)
 
             dut.mb = mantissa_bits
             dut.fb = fractional_bits
 
-            dut.IOS.Members["CLK"] = clk
+            dut.IOS.Members["clock"] = clk
             duts.append(dut)
 
     for dut in duts:
@@ -431,48 +461,41 @@ if __name__ == "__main__":
         fig, ax1 = plt.subplots()
 
         bits_info = f" mb={dut.mb}, fb={dut.fb}"
-        test_data = dut.IOS.Members["D_IN"].Data
-        output = dut.IOS.Members["D_OUT"].Data.reshape(-1, 1)
+        test_data = dut.IOS.Members["io_in_bits_rs1"].Data
+        output = dut.IOS.Members["io_out_bits_dataOut"].Data.reshape(-1, 1)
+        ax1.set_title(f"{dut.model} {dut.function}" + bits_info)
 
-        if dut.function == trigonometric_function.SIN:
+        if dut.function == "Sine":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\sin(\theta)$")
-            ax1.set_title(f"{dut.model} sin" + bits_info)
             reference = np.sin(test_data)
-        elif dut.function == trigonometric_function.COS:
+        elif dut.function == "Cosine":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\cos(\theta)$")
-            ax1.set_title(f"{dut.model} cos" + bits_info)
             reference = np.cos(test_data)
-        elif dut.function == trigonometric_function.ARCTAN:
+        elif dut.function == "Arctan":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\arctan(\theta)$")
-            ax1.set_title(f"{dut.model} arctan" + bits_info)
             reference = np.arctan(test_data)
-        elif dut.function == trigonometric_function.SINH:
+        elif dut.function == "Sinh":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\sinh(\theta)$")
-            ax1.set_title(f"{dut.model} sinh" + bits_info)
             reference = np.sinh(test_data)
-        elif dut.function == trigonometric_function.COSH:
+        elif dut.function == "Cosh":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$\cosh(\theta)$")
-            ax1.set_title(f"{dut.model} cosh" + bits_info)
             reference = np.cosh(test_data)
-        elif dut.function == trigonometric_function.ARCTANH:
+        elif dut.function == "Arctanh":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$arctanh(\theta)$")
-            ax1.set_title(f"{dut.model} arctanh" + bits_info)
             reference = np.arctanh(test_data)
-        elif dut.function == trigonometric_function.EXPONENTIAL:
+        elif dut.function == "Exponential":
             ax1.set_xlabel(r"$\theta$")
             ax1.set_ylabel(r"$e^{\theta}$")
-            ax1.set_title(f"{dut.model} exp" + bits_info)
             reference = np.exp(test_data)
-        elif dut.function == trigonometric_function.LOG:
+        elif dut.function == "Log":
             ax1.set_xlabel(r"a")
             ax1.set_ylabel(r"ln (a)")
-            ax1.set_title(f"{dut.model} log" + bits_info)
             reference = np.log(test_data)
 
         error = abs(output - reference)

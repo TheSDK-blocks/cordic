@@ -69,8 +69,8 @@ class model_2(cordic_model):
         self._mul_by_2 = False
 
         if (
-            self.op == cordic_types.trigonometric_function.SIN
-            or self.op == cordic_types.trigonometric_function.COS
+            self.op == "Sine"
+            or self.op == "Cosine"
         ):
             # TODO: what is the efficient way to do this in hardware??
             if methods.to_double_single(self.d_in, self.mb, self.fb) > pi/2:
@@ -82,7 +82,7 @@ class model_2(cordic_model):
                 self._invert_res = True
             else:
                 addee = zero_vec
-        elif self.op == cordic_types.trigonometric_function.LOG:
+        elif self.op == "Log":
             addee = mant_one_vec
             self._mul_by_2 = True
         else:
@@ -92,8 +92,8 @@ class model_2(cordic_model):
         d_in_sub = self._adder.sub(self.d_in, addee)
 
         if (
-            self.op == cordic_types.trigonometric_function.SIN
-            or self.op == cordic_types.trigonometric_function.COS
+            self.op == "Sine"
+            or self.op == "Cosine"
         ):
             self._mode = cordic_types.cordic_mode.ROTATION
             self._type = cordic_types.rotation_type.CIRCULAR
@@ -101,8 +101,8 @@ class model_2(cordic_model):
             self._y_in = zero_vec
             self._z_in = d_in_add if sincos_addsub == 0 else d_in_sub
         elif (
-            self.op == cordic_types.trigonometric_function.ARCTAN
-            or self.op == cordic_types.trigonometric_function.ARCTANH
+            self.op == "Arctan"
+            or self.op == "Arctanh"
         ):
             self._mode = cordic_types.cordic_mode.VECTORING
             self._type = (
@@ -114,21 +114,21 @@ class model_2(cordic_model):
             self._y_in = d_in_add
             self._z_in = zero_vec
         elif (
-            self.op == cordic_types.trigonometric_function.SINH
-            or self.op == cordic_types.trigonometric_function.COSH
+            self.op == "Sinh"
+            or self.op == "Cosh"
         ):
             self._mode = cordic_types.cordic_mode.ROTATION
             self._type = cordic_types.rotation_type.HYPERBOLIC
             self._x_in = Kh_vec
             self._y_in = zero_vec
             self._z_in = d_in_add
-        elif self.op == cordic_types.trigonometric_function.EXPONENTIAL:
+        elif self.op == "Exponential":
             self._mode = cordic_types.cordic_mode.ROTATION
             self._type = cordic_types.rotation_type.HYPERBOLIC
             self._x_in = Kh_vec
             self._y_in = Kh_vec
             self._z_in = d_in_add
-        elif self.op == cordic_types.trigonometric_function.LOG:
+        elif self.op == "Log":
             self._mode = cordic_types.cordic_mode.VECTORING
             self._type = cordic_types.rotation_type.HYPERBOLIC
             self._x_in = d_in_add
@@ -136,21 +136,21 @@ class model_2(cordic_model):
             self._z_in = zero_vec
 
     def postprocess(self):
-        if self.op == cordic_types.trigonometric_function.SIN:
+        if self.op == "Sine":
             d_out = self._y_out
-        elif self.op == cordic_types.trigonometric_function.COS:
+        elif self.op == "Cosine":
             d_out = self._x_out
-        elif self.op == cordic_types.trigonometric_function.ARCTAN:
+        elif self.op == "Arctan":
             d_out = self._z_out
-        elif self.op == cordic_types.trigonometric_function.SINH:
+        elif self.op == "Sinh":
             d_out = self._y_out
-        elif self.op == cordic_types.trigonometric_function.COSH:
+        elif self.op == "Cosh":
             d_out = self._x_out
-        elif self.op == cordic_types.trigonometric_function.ARCTANH:
+        elif self.op == "Arctanh":
             d_out = self._z_out
-        elif self.op == cordic_types.trigonometric_function.EXPONENTIAL:
+        elif self.op == "Exponential":
             d_out = self._x_out
-        elif self.op == cordic_types.trigonometric_function.LOG:
+        elif self.op == "Log":
             d_out = self._z_out
         d_out_c = self._adder.add(~d_out, BitVector(intVal=1, size=self.mb + self.fb))
         d_out_shifted = d_out.deep_copy() << 1
