@@ -24,9 +24,10 @@ mantissa_bits ?= 4
 fraction_bits ?= 12
 iterations ?= 14
 cordic_ops ?= Sine,Cosine
+waves ?= True
 
 MAINPARAMS_PY = --models \$(models) --mantissa-bits \$(mantissa_bits) --fraction-bits \$(fraction_bits) \\
---iterations \$(iterations) --cordic-ops \$(cordic_ops)
+--iterations \$(iterations) --cordic-ops \$(cordic_ops) --waves \$(waves)
 
 chisel/Makefile:
 	cd chisel && ./configure

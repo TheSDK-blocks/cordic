@@ -42,10 +42,13 @@ if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
 
 from thesdk import IO, thesdk
-from rtl import rtl, rtl_iofile
+from rtl import rtl, rtl_iofile, rtl_connector_bundle
+from rtl.module import verilog_module
 from spice import spice
 
 import numpy as np
+import cocotb
+from cocotb.runner import get_runner
 
 # from model_1 import model_1
 from model_2 import model_2
@@ -64,7 +67,7 @@ class CordicAccelerator(rtl, spice, thesdk):
         mode=cordic_types.cordic_mode.ROTATION,
         rot_type=cordic_types.rotation_type.CIRCULAR,
     ):
-        """Inverter parameters and attributes
+        """CordicAccelerator parameters and attributes
         Parameters
         ----------
             *arg :
@@ -83,39 +86,8 @@ class CordicAccelerator(rtl, spice, thesdk):
             function :
             Which operation the CORDIC is calculating
 
-        Attributes
-        ----------
-        proplist : array_like
-            List of strings containing the names of attributes whose
-            values are to be copied
-            from the parent
-
-        Rs : float
-            Sampling rate [Hz] of which the input values are assumed to
-            change. Default: 100.0e6
-
-        vdd : float
-            Supply voltage [V] for inverter analog simulation. Default 1.0.
-
-        IOS : Bundle
-            Members of this bundle are the IO's of the entity.
-            See documentation of thsdk package.
-            Default members defined as
-
-            self.IOS.Members['A']=IO() # Pointer for input data
-            self.IOS.Members['Z']= IO() # pointer for oputput data
-            self.IOS.Members['control_write']= IO() # Piter for control IO
-              for rtl simulations
-
-        model : string
-            Default 'py' for Python. See documentation of thsdk package
-            for more details.
-
         """
         self.print_log(type="I", msg="Initializing %s" % (__name__))
-        self.proplist = ["Rs", "vdd"]
-        self.Rs = 100e6  # Sampling frequency
-        self.vdd = 1.0
 
         self.IOS.Members["io_in_valid"] = IO()
         self.IOS.Members["io_in_bits_rs1"] = IO()
@@ -130,6 +102,7 @@ class CordicAccelerator(rtl, spice, thesdk):
 
         self.model = "py"  # Can be set externalouly, but is not propagated
 
+        # Model related properties
         self.mb = mantissa_bits
         self.fb = fractional_bits
         self.iters = iterations
@@ -137,21 +110,8 @@ class CordicAccelerator(rtl, spice, thesdk):
         self.mode = mode
         self.type = rot_type
 
-        # this copies the parameter values from the parent based
-        # on self.proplist
-        if len(arg) >= 1:
-            parent = arg[0]
-            self.copy_propval(parent, self.proplist)
-            self.parent = parent
-
-        self.init()
-
-    def init(self):
-        """Method to re-initialize the structure if the attribute values are
-        changed after creation.
-
-        """
-        pass
+        # Simulation related properties
+        self.waves = False
 
     def main(self):
         """The main python description of the operation. Contents fully up to
@@ -182,9 +142,6 @@ class CordicAccelerator(rtl, spice, thesdk):
                 dut.d_out, self.mb, self.fb
             )
 
-        # if self.par:
-        #     self.queue.put(out)
-
     def run(self, *arg):
         """The default name of the method to be executed. This means:
         parameters and attributes
@@ -203,137 +160,51 @@ class CordicAccelerator(rtl, spice, thesdk):
         if self.model == "py":
             self.main()
         else:
-            # This defines contents of modelsim control file executed
-            # when interactive_rtl = True
-            # Interactive control files
-            if self.model == "icarus" or self.model == "ghdl":
-                self.interactive_control_contents = """
-                    set io_facs [list]
-                    lappend io_facs "tb_inverter.A"
-                    lappend io_facs "tb_inverter.Z"
-                    lappend io_facs "tb_inverter.clock"
-                    gtkwave::addSignalsFromList $io_facs
-                    gtkwave::/Time/Zoom/Zoom_Full
-                """
-            else:
-                self.interactive_control_contents = """
-                    add wave \\
-                    sim/:tb_inverter:A \\
-                    sim/:tb_inverter:initdone \\
-                    sim/:tb_inverter:clock \\
-                    sim/:tb_inverter:Z
-                    run -all
-                    wave zoom full
-                """
+            sim = os.getenv("SIM", "icarus")
+            in_data = np.array(
+                [
+                    methods.to_fixed_point(x, self.mb, self.fb).int_val()
+                    for x in self.IOS.Members["io_in_bits_rs1"].Data
+                ]
+            ).reshape(-1, 1)
+            in_file = rtl_iofile(
+                self,
+                name="in_data",
+                dir="in",
+                iotype="sample",
+                ionames=["io_in_bits_rs1"],
+                datatype="sint",
+            )
+            out_file = rtl_iofile(
+                self,
+                name="out_data",
+                dir="out",
+                iotype="sample",
+                ionames=["io_out_bits"],
+                datatype="sint",
+            )
+            in_file.file = self.simpath + "/" + in_file.name + ".txt"
+            out_file.file = self.simpath + "/" + out_file.name + ".txt"
+            in_file.write(data=in_data)
 
-            if self.model == "ghdl":
-                # With this structure you can control the signals
-                # to be dumped to VCD pass
-                self.simulator_control_contents = (
-                    "version = 1.1  # Optional\n"
-                    + "/tb_inverter/A\n"
-                    + "/tb_inverter/Z\n"
-                    + "/tb_inverter/clock\n"
-                )
-
-            if self.model in ["sv", "icarus"]:
-                # Verilog simulation options here
-                _ = rtl_iofile(
-                    self,
-                    name="io_in_bits_rs1",
-                    dir="in",
-                    iotype="sample",
-                    ionames=["io_in_bits_rs1"],
-                    datatype="sint",
-                )
-                _ = rtl_iofile(
-                    self,
-                    name="io_in_bits_op",
-                    dir="in",
-                    iotype="sample",
-                    ionames=["io_in_bits_op"],
-                    datatype="sint",
-                )
-                _ = rtl_iofile(
-                    self,
-                    name="io_in_valid",
-                    dir="in",
-                    iotype="sample",
-                    ionames=["io_in_valid"],
-                    datatype="sint",
-                )
-                f = rtl_iofile(
-                    self,
-                    name="io_out_bits_dataOut",
-                    dir="out",
-                    iotype="sample",
-                    ionames=["io_out_bits_dataOut"],
-                    datatype="sint",
-                )
-
-                # Defines the sample rate
-                self.rtlparameters = dict(
-                    [
-                        ("g_Rs", ("real", self.Rs)),
-                    ]
-                )
-                self.run_rtl()
-                self.IOS.Members["io_out_bits_dataOut"].Data = (
-                    self.IOS.Members["io_out_bits_dataOut"]
-                    .Data[:, 0]
-                    .astype(int)
-                    .reshape(-1, 1)
-                )
-            elif self.model == "vhdl" or self.model == "ghdl":
-                # VHDL simulation options here
-                _ = rtl_iofile(
-                    self, name="A", dir="in", iotype="sample", ionames=["A"]
-                )  # IO file for input A
-                f = rtl_iofile(
-                    self,
-                    name="Z",
-                    dir="out",
-                    iotype="sample",
-                    ionames=["Z"],
-                    datatype="int",
-                )
-                if self.lang == "sv":
-                    f.rtl_io_sync = "@(negedge clock)"
-                elif self.lang == "vhdl":
-                    f.rtl_io_sync = "falling_edge(clock)"
-                # Defines the sample rate
-                self.rtlparameters = dict(
-                    [
-                        ("g_Rs", ("real", self.Rs)),
-                    ]
-                )
-                self.run_rtl()
-                self.IOS.Members["Z"].Data = (
-                    self.IOS.Members["Z"].Data.astype(int).reshape(-1, 1)
-                )
-
-            if self.par:
-                self.queue.put(self.IOS.Members)
-
-    # def define_io_conditions(self):
-    #     """This overloads the method called by run_rtl method. It defines
-    #     the read/write conditions for the files
-
-    #     """
-    #     if self.lang == "sv":
-    #         # Input A is read to verilog simulation after 'initdone' is set to
-    #         # 1 by controller
-    #         self.iofile_bundle.Members["A"].rtl_io_condition = "initdone"
-    #         # Output is read to verilog simulation when all of the outputs are
-    #         # valid, and after 'initdone' is set to 1 by controller
-    #         self.iofile_bundle.Members["Z"].rtl_io_condition_append(cond="&& initdone")
-    #     elif self.lang == "vhdl":
-    #         self.iofile_bundle.Members["A"].rtl_io_condition = "(initdone = '1')"
-    #         # Output is read to verilog simulation when all of the outputs
-    #         # are valid, and after 'initdone' is set to 1 by controller
-    #         self.iofile_bundle.Members["Z"].rtl_io_condition_append(
-    #             cond="and initdone = '1'"
-    #         )
+            runner = get_runner(sim)
+            runner.build(
+                verilog_sources=[self.vlogsrc, self.vlogsrcpath + "/cocotb_iverilog_dump.v"],
+                hdl_toplevel=self.name,
+                always=True,
+            )
+            runner.test(
+                hdl_toplevel=self.name,
+                test_module=f"test_{self.name}",
+                plusargs=[f"+infile={in_file.file}", f"+outfile={out_file.file}"],
+                waves=self.waves
+            )
+            # self.IOS.Members["io_out_bits_dataOut"].Data = (
+            #     self.IOS.Members["io_out_bits_dataOut"]
+            #     .Data[:, 0]
+            #     .astype(int)
+            #     .reshape(-1, 1)
+            # )
 
 
 if __name__ == "__main__":
@@ -341,7 +212,18 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     def comma_separated_type(value):
-        return value.split(',')
+        return value.split(",")
+
+    def str2bool(v):
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ('yes', 'true', 't', 'y', '1'):
+            return True
+        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
     # Implement argument parser
     parser = argparse.ArgumentParser(description="Parse selectors")
@@ -380,6 +262,11 @@ if __name__ == "__main__":
         help="Cordic operations enabled",
         type=comma_separated_type,
     )
+    parser.add_argument(
+        "--waves",
+        help="Dump waveform file",
+        type=str2bool,
+    )
     args = parser.parse_args()
 
     models = args.models
@@ -388,8 +275,7 @@ if __name__ == "__main__":
     mantissa_bits = 4
     fractional_bits = 12
     iterations = 14
-
-    max_value = 1
+    
     n_values = 10
     # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
@@ -403,11 +289,9 @@ if __name__ == "__main__":
             )
             dut.model = model
             dut.function = function
+            dut.waves = args.waves
 
-            if (
-                function == "Sine"
-                or function == "Cosine"
-            ):
+            if function == "Sine" or function == "Cosine":
                 test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
@@ -419,10 +303,7 @@ if __name__ == "__main__":
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
                     test_data.size, function
                 ).reshape(-1, 1)
-            elif (
-                function == "Cosh"
-                or function == "Sinh"
-            ):
+            elif function == "Cosh" or function == "Sinh":
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
@@ -454,7 +335,6 @@ if __name__ == "__main__":
             duts.append(dut)
 
     for dut in duts:
-        dut.init()
         dut.run()
 
         hfont = {"fontname": "Sans"}
