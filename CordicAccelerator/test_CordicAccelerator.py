@@ -9,6 +9,7 @@ async def test_CordicAccelerator(dut):
     dut.reset.value = 1
     await ClockCycles(dut.clock, 2)
     dut.reset.value = 0
+    dut.io_in_bits_op = int(cocotb.plusargs["op"])
     with open(cocotb.plusargs["infile"]) as infile:
         for row in infile:
             dut.io_in_bits_rs1.value = int(row)

@@ -110,6 +110,9 @@ class CordicAccelerator(rtl, spice, thesdk):
         self.mode = mode
         self.type = rot_type
 
+        # Function index for hardware implementation
+        self.function_idx = 0
+
         # Simulation related properties
         self.waves = False
 
@@ -189,15 +192,22 @@ class CordicAccelerator(rtl, spice, thesdk):
 
             runner = get_runner(sim)
             runner.build(
-                verilog_sources=[self.vlogsrc, self.vlogsrcpath + "/cocotb_iverilog_dump.v"],
+                verilog_sources=[
+                    self.vlogsrc,
+                    self.vlogsrcpath + "/cocotb_iverilog_dump.v",
+                ],
                 hdl_toplevel=self.name,
                 always=True,
             )
             runner.test(
                 hdl_toplevel=self.name,
                 test_module=f"test_{self.name}",
-                plusargs=[f"+infile={in_file.file}", f"+outfile={out_file.file}"],
-                waves=self.waves
+                plusargs=[
+                    f"+infile={in_file.file}",
+                    f"+outfile={out_file.file}",
+                    f"+op={self.function_idx}",
+                ],
+                waves=self.waves,
             )
             # self.IOS.Members["io_out_bits_dataOut"].Data = (
             #     self.IOS.Members["io_out_bits_dataOut"]
@@ -217,13 +227,12 @@ if __name__ == "__main__":
     def str2bool(v):
         if isinstance(v, bool):
             return v
-        if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        if v.lower() in ("yes", "true", "t", "y", "1"):
             return True
-        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        elif v.lower() in ("no", "false", "f", "n", "0"):
             return False
         else:
-            raise argparse.ArgumentTypeError('Boolean value expected.')
-
+            raise argparse.ArgumentTypeError("Boolean value expected.")
 
     # Implement argument parser
     parser = argparse.ArgumentParser(description="Parse selectors")
@@ -275,13 +284,13 @@ if __name__ == "__main__":
     mantissa_bits = 4
     fractional_bits = 12
     iterations = 14
-    
+
     n_values = 10
     # test_data = (np.random.random(size=n_values) * max_value).reshape(-1, 1)
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
 
     for model in models:
-        for function in args.cordic_ops:
+        for i, function in enumerate(args.cordic_ops):
             dut = CordicAccelerator(
                 mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
@@ -289,6 +298,7 @@ if __name__ == "__main__":
             )
             dut.model = model
             dut.function = function
+            dut.function_idx = i
             dut.waves = args.waves
 
             if function == "Sine" or function == "Cosine":
