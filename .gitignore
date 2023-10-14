@@ -16,3 +16,7 @@ sv/tb_*
 spice/tb_*
 spice/subckt_*
 modelsim.ini
+.DS_Store
+**/sim_build
+*.anno.json
+sv/Cordic*
