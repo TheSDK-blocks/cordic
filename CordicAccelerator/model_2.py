@@ -107,7 +107,7 @@ class model_2(cordic_model):
             self._mode = cordic_types.cordic_mode.VECTORING
             self._type = (
                 cordic_types.rotation_type.CIRCULAR
-                if self.op == cordic_types.trigonometric_function.ARCTAN
+                if self.op == "Arctan"
                 else cordic_types.rotation_type.HYPERBOLIC
             )
             self._x_in = mant_one_vec
