@@ -52,6 +52,7 @@ from cocotb.runner import get_runner
 
 # from model_1 import model_1
 from model_2 import model_2
+from BitVector import BitVector
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
 
@@ -94,7 +95,10 @@ class CordicAccelerator(rtl, spice, thesdk):
         self.IOS.Members["io_in_bits_rs2"] = IO()
         self.IOS.Members["io_in_bits_rs3"] = IO()
         self.IOS.Members["io_in_bits_op"] = IO()
-        self.IOS.Members["io_out_bits_dataOut"] = IO()
+        self.IOS.Members["io_out_bits_dOut"] = IO()
+        self.IOS.Members["io_out_bits_cordic_x"] = IO()
+        self.IOS.Members["io_out_bits_cordic_y"] = IO()
+        self.IOS.Members["io_out_bits_cordic_z"] = IO()
         self.IOS.Members["io_out_valid"] = IO()
 
         self.IOS.Members["clock"] = IO()
@@ -133,15 +137,15 @@ class CordicAccelerator(rtl, spice, thesdk):
 
         assert d_in.size == ops.size, "Input vectors must be same size!"
 
-        self.IOS.Members["io_out_bits_dataOut"].Data = np.zeros(d_in.size)
+        self.IOS.Members["io_out_bits_dOut"].Data = np.zeros(d_in.size)
 
         dut = model_2(self.mb, self.fb, self.iters)
 
         for i in range(0, d_in.size):
-            dut.d_in = methods.to_fixed_point(d_in[i], self.mb, self.fb)
+            dut.d_in = methods.to_fixed_point(d_in[i][0], self.mb, self.fb)
             dut.op = ops[i]
             dut.run()
-            self.IOS.Members["io_out_bits_dataOut"].Data[i] = methods.to_double_single(
+            self.IOS.Members["io_out_bits_dOut"].Data[i] = methods.to_double_single(
                 dut.d_out, self.mb, self.fb
             )
 
@@ -182,6 +186,7 @@ class CordicAccelerator(rtl, spice, thesdk):
             in_ionames = []
             out_iofiles = []
             out_ionames = []
+            out_iofileinsts = []
             for key, value in in_ios.items():
                 file = rtl_iofile(
                     self,
@@ -210,6 +215,7 @@ class CordicAccelerator(rtl, spice, thesdk):
                 file.file = self.simpath + "/" + file.name + ".txt"
                 out_iofiles.append(file.file)
                 out_ionames.append(value)
+                out_iofileinsts.append(file)
 
             runner = get_runner(sim)
             runner.build(
@@ -234,6 +240,11 @@ class CordicAccelerator(rtl, spice, thesdk):
                 ],
                 waves=self.waves,
             )
+
+            # Read iofiles into Python datatype
+            for i, iofile in enumerate(out_iofileinsts):
+                iofile.read(dtype="int")
+                self.IOS.Members[out_ionames[i]].Data = iofile.Data
 
 
 if __name__ == "__main__":
@@ -327,49 +338,42 @@ if __name__ == "__main__":
 
             if function_name == "Sine" or function_name == "Cosine":
                 test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
-                dut.IOS.Members["io_in_bits_op"].Data = np.full(
-                    test_data.size, function
-                ).reshape(-1, 1)
             elif function_name == "Arctan":
                 test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
-                dut.IOS.Members["io_in_bits_op"].Data = np.full(
-                    test_data.size, function
-                ).reshape(-1, 1)
             elif function_name == "Cosh" or function_name == "Sinh":
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
-                dut.IOS.Members["io_in_bits_op"].Data = np.full(
-                    test_data.size, function
-                ).reshape(-1, 1)
             elif function_name == "Arctanh":
                 test_data = np.arange(-0.8, 0.8, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
-                dut.IOS.Members["io_in_bits_op"].Data = np.full(
-                    test_data.size, function
-                ).reshape(-1, 1)
             elif function_name == "Exponential":
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
-                dut.IOS.Members["io_in_bits_op"].Data = np.full(
-                    test_data.size, function
-                ).reshape(-1, 1)
             elif function_name == "Log":
                 test_data = np.arange(0.15, 3.0, 0.01, dtype=float).reshape(-1, 1)
-                dut.IOS.Members["io_in_bits_rs1"].Data = test_data
-                dut.IOS.Members["io_in_bits_op"].Data = np.full(
-                    test_data.size, function
-                ).reshape(-1, 1)
+
+            dut.IOS.Members["io_in_bits_rs1"].Data = np.array(
+                [
+                    methods.to_fixed_point(
+                        data_point, mantissa_bits, fractional_bits
+                    ).int_val()
+                    for data_point in test_data[:, 0]
+                ]
+            ).reshape(-1, 1)
+
+            dut.IOS.Members["io_in_bits_op"].Data = np.full(
+                test_data.size, function
+            ).reshape(-1, 1)
 
             dut.mb = mantissa_bits
             dut.fb = fractional_bits
 
             if model == "sv":
-                dut.IOS.Members["io_in_bits_rs1"].Data = np.array([
-                    methods.to_fixed_point(x, mantissa_bits, fractional_bits).int_val()
-                    for x in dut.IOS.Members["io_in_bits_rs1"].Data
-                ]).reshape(-1, 1)
+                dut.IOS.Members["io_in_bits_rs1"].Data = np.array(
+                    [
+                        methods.to_fixed_point(
+                            x, mantissa_bits, fractional_bits
+                        ).int_val()
+                        for x in dut.IOS.Members["io_in_bits_rs1"].Data
+                    ]
+                ).reshape(-1, 1)
 
             dut.IOS.Members["clock"].Data = clk
             duts.append(dut)
@@ -381,8 +385,26 @@ if __name__ == "__main__":
         fig, ax1 = plt.subplots()
 
         bits_info = f" mb={dut.mb}, fb={dut.fb}"
-        test_data = dut.IOS.Members["io_in_bits_rs1"].Data
-        output = dut.IOS.Members["io_out_bits_dataOut"].Data.reshape(-1, 1)
+
+        test_data = np.array(
+            [
+                methods.to_double_single(
+                    methods.to_fixed_point(data_point, dut.mb, dut.fb), dut.mb, dut.fb
+                )
+                for data_point in dut.IOS.Members["io_in_bits_rs1"].Data[:, 0]
+            ]
+        ).reshape(-1, 1)
+        output = dut.IOS.Members["io_out_bits_dOut"].Data.reshape(-1, 1)
+        # import pdb; pdb.set_trace()
+        if dut.model == "sv":
+            output = np.array(
+                [
+                    methods.to_double_single(
+                        BitVector(intVal=x, size=(dut.mb + dut.fb)), dut.mb, dut.fb
+                    )
+                    for x in output[:, 0]
+                ]
+            ).reshape(-1, 1)
         ax1.set_title(f"{dut.model} {dut.function}" + bits_info)
 
         if dut.function == "Sine":
