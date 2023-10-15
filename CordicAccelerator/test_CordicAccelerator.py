@@ -4,6 +4,14 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb.clock import Clock
 
 
+@cocotb.coroutine
+async def collect_outputs(clock, valid, data, target_io):
+    while True:
+        await RisingEdge(clock)
+        if valid.value == 1:
+            target_io.append(data.value)
+
+
 @cocotb.test()
 async def test_CordicAccelerator(dut):
     in_iofiles = cocotb.plusargs["in_iofiles"].split(",")
@@ -25,6 +33,10 @@ async def test_CordicAccelerator(dut):
         with open(in_iofiles[i], "r") as iofile:
             IOS[in_ionames[i]] = np.array([int(line.strip()) for line in iofile])
 
+    # Initialize output IOS
+    for i in range(0, len(out_iofiles)):
+        IOS[out_ionames[i]] = []
+
     # Run clock
     cocotb.start_soon(Clock(clock, period=2, units="step").start())
 
@@ -35,6 +47,15 @@ async def test_CordicAccelerator(dut):
     reset.value = 0
 
     # Your testbench
+
+    # Coroutine to collect outputs
+    cocotb.start_soon(
+        collect_outputs(
+            clock, dut.io_out_valid, dut.io_out_bits_dOut, IOS["io_out_bits_dOut"]
+        )
+    )
+
+    # Feed inputs
     for i, sample in enumerate(IOS["io_in_bits_rs1"]):
         dut.io_in_bits_rs1.value = int(sample)
         dut.io_in_bits_op.value = int(IOS["io_in_bits_op"][i])
@@ -43,3 +64,8 @@ async def test_CordicAccelerator(dut):
 
     dut.io_in_valid.value = 0
     await ClockCycles(dut.clock, 20)
+
+    # Store outputs
+    for i in range(0, len(out_iofiles)):
+        with open(out_iofiles[i], "w") as iofile:
+            iofile.writeline(IOS[out_ionames[i]])
