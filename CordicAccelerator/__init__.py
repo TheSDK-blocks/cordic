@@ -164,31 +164,52 @@ class CordicAccelerator(rtl, spice, thesdk):
             self.main()
         else:
             sim = os.getenv("SIM", "icarus")
-            in_data = np.array(
-                [
-                    methods.to_fixed_point(x, self.mb, self.fb).int_val()
-                    for x in self.IOS.Members["io_in_bits_rs1"].Data
-                ]
-            ).reshape(-1, 1)
-            in_file = rtl_iofile(
-                self,
-                name="in_data",
-                dir="in",
-                iotype="sample",
-                ionames=["io_in_bits_rs1"],
-                datatype="sint",
-            )
-            out_file = rtl_iofile(
-                self,
-                name="out_data",
-                dir="out",
-                iotype="sample",
-                ionames=["io_out_bits"],
-                datatype="sint",
-            )
-            in_file.file = self.simpath + "/" + in_file.name + ".txt"
-            out_file.file = self.simpath + "/" + out_file.name + ".txt"
-            in_file.write(data=in_data)
+            clock_name = "clock"
+            reset_name = "reset"
+            in_ios = {
+                "rs1": "io_in_bits_rs1",
+                "rs2": "io_in_bits_rs2",
+                "rs3": "io_in_bits_rs3",
+                "op": "io_in_bits_op",
+            }
+            out_ios = {
+                "x": "io_out_bits_cordic_x",
+                "y": "io_out_bits_cordic_y",
+                "z": "io_out_bits_cordic_z",
+                "dOut": "io_out_bits_dOut",
+            }
+            in_iofiles = []
+            in_ionames = []
+            out_iofiles = []
+            out_ionames = []
+            for key, value in in_ios.items():
+                file = rtl_iofile(
+                    self,
+                    name=key,
+                    dir="in",
+                    iotype="sample",
+                    ionames=[value],
+                    datatype="sint",
+                )
+                file.file = self.simpath + "/" + file.name + ".txt"
+                data = self.IOS.Members[value].Data
+                if data is None:
+                    data = np.empty((1, 1))
+                file.write(data=data)
+                in_iofiles.append(file.file)
+                in_ionames.append(value)
+            for key, value in out_ios.items():
+                file = rtl_iofile(
+                    self,
+                    name=key,
+                    dir="out",
+                    iotype="sample",
+                    ionames=[value],
+                    datatype="sint",
+                )
+                file.file = self.simpath + "/" + file.name + ".txt"
+                out_iofiles.append(file.file)
+                out_ionames.append(value)
 
             runner = get_runner(sim)
             runner.build(
@@ -203,18 +224,16 @@ class CordicAccelerator(rtl, spice, thesdk):
                 hdl_toplevel=self.name,
                 test_module=f"test_{self.name}",
                 plusargs=[
-                    f"+infile={in_file.file}",
-                    f"+outfile={out_file.file}",
+                    f"+in_iofiles={','.join(in_iofiles)}",
+                    f"+in_ionames={','.join(in_ionames)}",
+                    f"+out_iofiles={','.join(out_iofiles)}",
+                    f"+out_ionames={','.join(out_ionames)}",
+                    f"+clock={clock_name}",
+                    f"+reset={reset_name}",
                     f"+op={self.function_idx}",
                 ],
                 waves=self.waves,
             )
-            # self.IOS.Members["io_out_bits_dataOut"].Data = (
-            #     self.IOS.Members["io_out_bits_dataOut"]
-            #     .Data[:, 0]
-            #     .astype(int)
-            #     .reshape(-1, 1)
-            # )
 
 
 if __name__ == "__main__":
@@ -290,48 +309,53 @@ if __name__ == "__main__":
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
 
     for model in models:
-        for i, function in enumerate(args.cordic_ops):
+        for i, function_name in enumerate(args.cordic_ops):
             dut = CordicAccelerator(
                 mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
                 iterations=iterations,
             )
             dut.model = model
-            dut.function = function
+            dut.function = function_name
             dut.function_idx = i
             dut.waves = args.waves
 
-            if function == "Sine" or function == "Cosine":
+            if model == "py":
+                function = function_name
+            elif model == "sv":
+                function = i
+
+            if function_name == "Sine" or function_name == "Cosine":
                 test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
                     test_data.size, function
                 ).reshape(-1, 1)
-            elif function == "Arctan":
+            elif function_name == "Arctan":
                 test_data = np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
                     test_data.size, function
                 ).reshape(-1, 1)
-            elif function == "Cosh" or function == "Sinh":
+            elif function_name == "Cosh" or function_name == "Sinh":
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
                     test_data.size, function
                 ).reshape(-1, 1)
-            elif function == "Arctanh":
+            elif function_name == "Arctanh":
                 test_data = np.arange(-0.8, 0.8, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
                     test_data.size, function
                 ).reshape(-1, 1)
-            elif function == "Exponential":
+            elif function_name == "Exponential":
                 test_data = np.arange(-1.1, 1.1, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
                     test_data.size, function
                 ).reshape(-1, 1)
-            elif function == "Log":
+            elif function_name == "Log":
                 test_data = np.arange(0.15, 3.0, 0.01, dtype=float).reshape(-1, 1)
                 dut.IOS.Members["io_in_bits_rs1"].Data = test_data
                 dut.IOS.Members["io_in_bits_op"].Data = np.full(
@@ -340,6 +364,12 @@ if __name__ == "__main__":
 
             dut.mb = mantissa_bits
             dut.fb = fractional_bits
+
+            if model == "sv":
+                dut.IOS.Members["io_in_bits_rs1"].Data = np.array([
+                    methods.to_fixed_point(x, mantissa_bits, fractional_bits).int_val()
+                    for x in dut.IOS.Members["io_in_bits_rs1"].Data
+                ]).reshape(-1, 1)
 
             dut.IOS.Members["clock"].Data = clk
             duts.append(dut)
