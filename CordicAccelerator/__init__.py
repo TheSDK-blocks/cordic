@@ -305,6 +305,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     models = args.models
+    functions = args.cordic_ops
     duts = []
 
     mantissa_bits = 4
@@ -316,7 +317,7 @@ if __name__ == "__main__":
     clk = np.array([0 if i % 2 == 0 else 1 for i in range(2 * n_values)]).reshape(-1, 1)
 
     for model in models:
-        for i, function_name in enumerate(args.cordic_ops):
+        for i, function_name in enumerate(functions):
             dut = CordicAccelerator(
                 mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
@@ -364,11 +365,20 @@ if __name__ == "__main__":
             dut.IOS.Members["clock"].Data = clk
             duts.append(dut)
 
+    # Prepare figures
+    plot_list = []
+    n_models = len(models)
+    for i, function_name in enumerate(functions):
+        fig, ax1 = plt.subplots(n_models, 1)
+        plot_list.append((fig, ax1))
+
     for dut in duts:
         dut.run()
 
         hfont = {"fontname": "Sans"}
-        fig, ax1 = plt.subplots()
+
+        fig, ax1 = plot_list[dut.function_idx]
+        ax_idx = models.index(dut.model)
 
         bits_info = f" mb={dut.mb}, fb={dut.fb}"
 
@@ -389,48 +399,48 @@ if __name__ == "__main__":
             ]
         ).reshape(-1, 1)
 
-        ax1.set_title(f"{dut.model} {dut.function}" + bits_info)
+        ax1[ax_idx].set_title(f"{dut.model} {dut.function}" + bits_info)
 
         if dut.function == "Sine":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$\sin(\theta)$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$\sin(\theta)$")
             reference = np.sin(test_data)
         elif dut.function == "Cosine":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$\cos(\theta)$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$\cos(\theta)$")
             reference = np.cos(test_data)
         elif dut.function == "Arctan":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$\arctan(\theta)$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$\arctan(\theta)$")
             reference = np.arctan(test_data)
         elif dut.function == "Sinh":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$\sinh(\theta)$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$\sinh(\theta)$")
             reference = np.sinh(test_data)
         elif dut.function == "Cosh":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$\cosh(\theta)$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$\cosh(\theta)$")
             reference = np.cosh(test_data)
         elif dut.function == "Arctanh":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$arctanh(\theta)$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$arctanh(\theta)$")
             reference = np.arctanh(test_data)
         elif dut.function == "Exponential":
-            ax1.set_xlabel(r"$\theta$")
-            ax1.set_ylabel(r"$e^{\theta}$")
+            ax1[ax_idx].set_xlabel(r"$\theta$")
+            ax1[ax_idx].set_ylabel(r"$e^{\theta}$")
             reference = np.exp(test_data)
         elif dut.function == "Log":
-            ax1.set_xlabel(r"a")
-            ax1.set_ylabel(r"ln (a)")
+            ax1[ax_idx].set_xlabel(r"a")
+            ax1[ax_idx].set_ylabel(r"ln (a)")
             reference = np.log(test_data)
 
         error = abs(output - reference)
-        ax1.plot(test_data, reference, label="reference")
-        ax1.plot(test_data, output, label="cordic")
-        ax2 = ax1.twinx()
+        ax1[ax_idx].plot(test_data, reference, label="reference")
+        ax1[ax_idx].plot(test_data, output, label="cordic")
+        ax2 = ax1[ax_idx].twinx()
         ax2.set_ylabel("|error|")
         ax2.plot(test_data, error, color="red", label="error")
-        ax1.legend(loc=2)
+        ax1[ax_idx].legend(loc=2)
         ax2.legend(loc=1)
         fig.tight_layout()
         plt.draw()
