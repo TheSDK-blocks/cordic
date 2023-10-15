@@ -49,11 +49,12 @@ async def test_CordicAccelerator(dut):
     # Your testbench
 
     # Coroutine to collect outputs
-    cocotb.start_soon(
-        collect_outputs(
-            clock, dut.io_out_valid, dut.io_out_bits_dOut, IOS["io_out_bits_dOut"]
+    for out_ioname in out_ionames:
+        cocotb.start_soon(
+            collect_outputs(
+                clock, dut.io_out_valid, getattr(dut, out_ioname), IOS[out_ioname]
+            )
         )
-    )
 
     # Feed inputs
     for i, sample in enumerate(IOS["io_in_bits_rs1"]):
@@ -68,4 +69,5 @@ async def test_CordicAccelerator(dut):
     # Store outputs
     for i in range(0, len(out_iofiles)):
         with open(out_iofiles[i], "w") as iofile:
-            iofile.writeline(IOS[out_ionames[i]])
+            for entry in IOS[out_ionames[i]]:
+                iofile.write(str(entry.integer) + "\n")
