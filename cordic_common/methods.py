@@ -29,7 +29,7 @@ def calc_k(iters, rot_type: rotation_type):
     return k
 
 
-def to_fixed_point(value: Union[float, int64], mantissa_bits: int, float_bits: int):
+def to_fixed_point(value: Union[float, int, int64], mantissa_bits: int, float_bits: int):
     """
     Converts float value into fixed-point representation.
     Fixed point is represented as BitVector
