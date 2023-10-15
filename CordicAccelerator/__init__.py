@@ -137,7 +137,7 @@ class CordicAccelerator(rtl, spice, thesdk):
 
         assert d_in.size == ops.size, "Input vectors must be same size!"
 
-        self.IOS.Members["io_out_bits_dOut"].Data = np.zeros(d_in.size)
+        d_out = np.zeros(d_in.size, dtype=np.int64)
 
         dut = model_2(self.mb, self.fb, self.iters)
 
@@ -145,9 +145,8 @@ class CordicAccelerator(rtl, spice, thesdk):
             dut.d_in = methods.to_fixed_point(d_in[i][0], self.mb, self.fb)
             dut.op = ops[i]
             dut.run()
-            self.IOS.Members["io_out_bits_dOut"].Data[i] = methods.to_double_single(
-                dut.d_out, self.mb, self.fb
-            )
+            d_out[i] = dut.d_out.int_val()
+        self.IOS.Members["io_out_bits_dOut"].Data = d_out.reshape(-1, 1)
 
     def run(self, *arg):
         """The default name of the method to be executed. This means:
@@ -269,10 +268,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--show",
         dest="show",
-        type=bool,
-        nargs="?",
-        const=True,
-        default=False,
+        type=str2bool,
         help="Show figures on screen",
     )
     parser.add_argument(
@@ -365,16 +361,6 @@ if __name__ == "__main__":
             dut.mb = mantissa_bits
             dut.fb = fractional_bits
 
-            if model == "sv":
-                dut.IOS.Members["io_in_bits_rs1"].Data = np.array(
-                    [
-                        methods.to_fixed_point(
-                            x, mantissa_bits, fractional_bits
-                        ).int_val()
-                        for x in dut.IOS.Members["io_in_bits_rs1"].Data
-                    ]
-                ).reshape(-1, 1)
-
             dut.IOS.Members["clock"].Data = clk
             duts.append(dut)
 
@@ -394,17 +380,15 @@ if __name__ == "__main__":
                 for data_point in dut.IOS.Members["io_in_bits_rs1"].Data[:, 0]
             ]
         ).reshape(-1, 1)
-        output = dut.IOS.Members["io_out_bits_dOut"].Data.reshape(-1, 1)
-        # import pdb; pdb.set_trace()
-        if dut.model == "sv":
-            output = np.array(
-                [
-                    methods.to_double_single(
-                        BitVector(intVal=x, size=(dut.mb + dut.fb)), dut.mb, dut.fb
-                    )
-                    for x in output[:, 0]
-                ]
-            ).reshape(-1, 1)
+        output = np.array(
+            [
+                methods.to_double_single(
+                    methods.to_fixed_point(data_point, dut.mb, dut.fb), dut.mb, dut.fb
+                )
+                for data_point in dut.IOS.Members["io_out_bits_dOut"].Data[:, 0]
+            ]
+        ).reshape(-1, 1)
+
         ax1.set_title(f"{dut.model} {dut.function}" + bits_info)
 
         if dut.function == "Sine":
@@ -450,4 +434,5 @@ if __name__ == "__main__":
         ax2.legend(loc=1)
         fig.tight_layout()
         plt.draw()
-    plt.show()
+    if args.show:
+        plt.show()
