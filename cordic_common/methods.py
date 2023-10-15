@@ -3,6 +3,8 @@ import sys
 from BitVector import BitVector
 from math import modf, floor, sqrt
 from bitstring import Bits
+from typing import Union
+from numpy import int64
 
 if not (os.path.dirname(os.path.abspath(__file__)) in sys.path):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -27,23 +29,25 @@ def calc_k(iters, rot_type: rotation_type):
     return k
 
 
-def to_fixed_point(value: float, mantissa_bits: int, float_bits: int):
+def to_fixed_point(value: Union[float, int64], mantissa_bits: int, float_bits: int):
     """
     Converts float value into fixed-point representation.
-    Fixed point is represented as tuple (BitVector, BitVector),
-    where index 0 holds mantissa and index 1 holds fractional part
+    Fixed point is represented as BitVector
     """
-    (frac, integer_signed) = modf(value)
-    sign = value < 0
-    integer = int(abs(integer_signed))
-    frac_bits = floor((1 << float_bits) * abs(frac))
-    bits = (integer << float_bits) | frac_bits
-    if sign:
-        bits *= -1
-    bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
-    # requires bitstring 4.1.0
-    bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
-    return bit_vec
+    if isinstance(value, float):
+        (frac, integer_signed) = modf(value)
+        sign = value < 0
+        integer = int(abs(integer_signed))
+        frac_bits = floor((1 << float_bits) * abs(frac))
+        bits = (integer << float_bits) | frac_bits
+        if sign:
+            bits *= -1
+        bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
+        # requires bitstring 4.1.0
+        bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
+        return bit_vec
+    elif isinstance(value, int64):
+        return BitVector(intVal=value, size=(mantissa_bits + float_bits))
 
 
 def to_double(bit_vector: (BitVector, BitVector)):
