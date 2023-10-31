@@ -367,7 +367,9 @@ if __name__ == "__main__":
 
     # Prepare figures
     plot_list = []
-    n_models = len(models)
+    # Indexing breaks if we have only one plot,
+    # so we create a dummy plot if n_models == 1
+    n_models = max(len(models), 2)
     for i, function_name in enumerate(functions):
         fig, ax1 = plt.subplots(n_models, 1)
         plot_list.append((fig, ax1))
@@ -398,7 +400,6 @@ if __name__ == "__main__":
                 for data_point in dut.IOS.Members["io_out_bits_dOut"].Data[:, 0]
             ]
         ).reshape(-1, 1)
-
         ax1[ax_idx].set_title(f"{dut.model} {dut.function}" + bits_info)
 
         if dut.function == "Sine":
