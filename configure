@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test changes
 THISDIR=$( cd `dirname $0` && pwd )
-MODULE=$( basename ${THISDIR})
+MODULE=CordicAccelerator
 
 #Defines TheSDK environment variables
 . ${THISDIR}/../../TheSDK.config

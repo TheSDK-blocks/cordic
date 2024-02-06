@@ -38,9 +38,6 @@ import sys
 if not (os.path.abspath("../../thesdk") in sys.path):
     sys.path.append(os.path.abspath("../../thesdk"))
 
-if not (os.path.abspath("../cordic_common") in sys.path):
-    sys.path.append(os.path.abspath("../cordic_common"))
-
 from thesdk import IO, thesdk
 from rtl import rtl, rtl_iofile, rtl_connector_bundle
 from rtl.module import verilog_module
