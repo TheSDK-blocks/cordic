@@ -16,8 +16,7 @@ cat << EOF > ${THISDIR}/Makefile
 
 .PHONY: all sim chisel clean
 
-#all: chisel sim
-all: sim
+all: chisel sim
 
 models ?= py
 mantissa_bits ?= 4
@@ -33,7 +32,7 @@ MAINPARAMS_PY = --models \$(models) --mantissa-bits \$(mantissa_bits) --fraction
 chisel/Makefile:
 	cd chisel && ./configure
 
-sim: chisel
+sim:
 	cd ${THISDIR}/${MODULE} && \\
 	${PYL} __init__.py \$(MAINPARAMS_PY) || (echo "make sim failed $$?"; exit 1)
 
