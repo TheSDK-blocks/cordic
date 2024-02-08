@@ -23,10 +23,16 @@ class cordic_model:
 
         # IOs
         self.d_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.rs1_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.rs2_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.rs3_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
         self.op: cordic_types.trigonometric_function = (
             cordic_types.trigonometric_function.SIN
         )
         self.d_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.rs1_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.rs2_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
+        self.rs3_out: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
 
     def run(self):
         raise NotImplementedError

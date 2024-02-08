@@ -58,11 +58,6 @@ class model_2(cordic_model):
             self.mb,
             self.fb,
         )
-        pi_vec = methods.to_fixed_point(
-            pi,
-            self.mb,
-            self.fb,
-        )
 
         sincos_addsub = 0
         self._invert_res = False
@@ -72,6 +67,11 @@ class model_2(cordic_model):
             self.op == "Sine"
             or self.op == "Cosine"
         ):
+            pi_vec = methods.to_fixed_point(
+                pi,
+                self.mb,
+                self.fb,
+            )
             # TODO: what is the efficient way to do this in hardware??
             if methods.to_double_single(self.d_in, self.mb, self.fb) > pi/2:
                 addee = pi_vec
@@ -134,8 +134,28 @@ class model_2(cordic_model):
             self._x_in = d_in_add
             self._y_in = d_in_sub
             self._z_in = zero_vec
+        elif self.op == "Upconvert":
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.CIRCULAR
+            z = methods.to_double_single(self.rs3_in, self.mb, self.fb)
+            x = self.rs1_in
+            y = self.rs2_in
+            if z > pi/4:
+                z -= pi/4
+                x = self.rs2_in
+                y = self._adder.add(~self.rs1_in, BitVector(intVal=1, size=self.mb + self.fb))
+            elif z < -pi/4:
+                z += pi/4
+                x = self._adder.add(~self.rs2_in, BitVector(intVal=1, size=self.mb + self.fb))
+                y = self.rs1_in
+            self._x_in = x
+            self._y_in = y
+            self._z_in = methods.to_fixed_point(z, self.mb, self.fb)
 
     def postprocess(self):
+        self.rs1_out = self._x_out
+        self.rs2_out = self._y_out
+        self.rs3_out = self._z_out
         if self.op == "Sine":
             d_out = self._y_out
         elif self.op == "Cosine":
@@ -152,6 +172,8 @@ class model_2(cordic_model):
             d_out = self._x_out
         elif self.op == "Log":
             d_out = self._z_out
+        else:
+            d_out = self._x_out
         d_out_c = self._adder.add(~d_out, BitVector(intVal=1, size=self.mb + self.fb))
         d_out_shifted = d_out.deep_copy() << 1
         if self._invert_res:
