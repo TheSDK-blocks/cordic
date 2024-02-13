@@ -54,7 +54,7 @@ import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
 
 
-class CordicAccelerator(rtl, spice, thesdk):
+class Cordic(rtl, spice, thesdk):
     def __init__(
         self,
         *arg,
@@ -65,7 +65,7 @@ class CordicAccelerator(rtl, spice, thesdk):
         mode=cordic_types.cordic_mode.ROTATION,
         rot_type=cordic_types.rotation_type.CIRCULAR,
     ):
-        """CordicAccelerator parameters and attributes
+        """Cordic parameters and attributes
         Parameters
         ----------
             *arg :
@@ -349,7 +349,7 @@ if __name__ == "__main__":
 
     for model in models:
         for i, function_name in enumerate(functions):
-            dut = CordicAccelerator(
+            dut = Cordic(
                 mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
                 iterations=iterations,

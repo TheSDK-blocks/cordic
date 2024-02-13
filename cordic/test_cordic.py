@@ -13,7 +13,7 @@ async def collect_outputs(clock, valid, data, target_io):
 
 
 @cocotb.test()
-async def test_CordicAccelerator(dut):
+async def test_cordic(dut):
     in_iofiles = cocotb.plusargs["in_iofiles"].split(",")
     in_ionames = cocotb.plusargs["in_ionames"].split(",")
     out_iofiles = cocotb.plusargs["out_iofiles"].split(",")
