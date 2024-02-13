@@ -269,8 +269,9 @@ class CordicAccelerator(rtl, spice, thesdk):
             include_dir + "iq-vecs_sigparams.yml"
         )
         signal_gen, I_sig, Q_sig, _ = URC_tk.init_NR_siggen(
-            ["I"], QAM, osr, BWP, BW, in_bits, 0, 16, 0, show=True
+            ["I"], QAM, osr, BWP, BW, in_bits, 0, 16, 0
         )
+        interp_sig = URC_tk.interpolate_sig(signal_gen.IOS.Members["out"].Data, 16)
         I = signal_gen.IOS.Members["out"].Data[:, 0]
         Q = signal_gen.IOS.Members["out"].Data[:, 1]
         return I, Q, signal_gen, URC_tk
@@ -423,7 +424,7 @@ if __name__ == "__main__":
                 dut.IOS.Members["io_in_bits_rs2"].Data = all_to_fp(Q.reshape(-1, 1))
                 # Create a vector that rotates 360 degrees continuously
                 Fs = signal_gen.s_struct['Fs']
-                center_freq = 5000 #Fs // 100
+                center_freq = 5000000
                 rot_vec = np.linspace(np.pi/2, -np.pi/2, round(Fs/center_freq), endpoint=False)
                 #rot_vec = np.zeros(round(signal_gen.s_struct['Fs']/1e6))
                 # Check how many times it manages to rotate during the length of the input signal
@@ -432,14 +433,18 @@ if __name__ == "__main__":
                 # How many samples remain to be filled of a partial circle
                 remainder = len(dut.IOS.Members["io_in_bits_rs1"].Data) % len(rot_vec)
                 # Concatenate repeated rotation and the remainder vector
-                rot_vec_extended = np.concatenate((np.tile(rot_vec, repeats), rot_vec[:remainder])).reshape(-1, 1)
-                new_I = (I * np.cos(rot_vec_extended).reshape(1,-1) - Q * np.sin(rot_vec_extended).reshape(1,-1)).reshape(-1, 1)
-                new_Q = (I * np.sin(rot_vec_extended).reshape(1,-1) + Q * np.cos(rot_vec_extended).reshape(1,-1)).reshape(-1, 1)
+                rot_vec_extended = np.concatenate(
+                        (np.tile(rot_vec, repeats), rot_vec[:remainder])
+                        ).reshape(-1, 1)
+                new_I = (I * np.cos(rot_vec_extended).reshape(1,-1) - \
+                        Q * np.sin(rot_vec_extended).reshape(1,-1)).reshape(-1, 1)
+                new_Q = (I * np.sin(rot_vec_extended).reshape(1,-1) + \
+                        Q * np.cos(rot_vec_extended).reshape(1,-1)).reshape(-1, 1)
                 #dut.IOS.Members["io_in_bits_rs3"].Data = all_to_fp(rot_vec_extended)
                 dut.signal_gen = signal_gen
                 dut.URC_tk = URC_tk
                 import pdb; pdb.set_trace()
-                dut.URC_tk.plot_5G_output(["I","Q"], "interp_decim", [ 16 ], dut.signal_gen, [[ new_I[:,0], new_Q[:,0] ]])
+                dut.URC_tk.plot_5G_output(["I","Q"], "interp", [ 16 ], dut.signal_gen, [[ new_I[:,0], new_Q[:,0] ]])
                 input("Ess Prenter e toxit")
                 exit()
                 
