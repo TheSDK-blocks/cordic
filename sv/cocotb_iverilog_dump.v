@@ -1,6 +1,6 @@
 module cocotb_iverilog_dump();
 initial begin
-    $dumpfile("CordicAccelerator.vcd");
-    $dumpvars(0, CordicAccelerator);
+    $dumpfile("CordicTop.vcd");
+    $dumpvars(0, CordicTop);
 end
 endmodule

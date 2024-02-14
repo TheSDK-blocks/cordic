@@ -46,6 +46,12 @@ class model_2(cordic_model):
         self._adder = adder_subtractor(bits=self.mb + self.fb)
 
     def preprocess(self):
+
+        # Defaults
+        self._x_in = self.rs1_in
+        self._y_in = self.rs2_in
+        self._z_in = self.rs3_in
+
         mant_one_vec = methods.to_fixed_point(1.0, self.mb, self.fb)
         zero_vec = BitVector(intVal=0, size=(self.mb + self.fb))
         K_vec = methods.to_fixed_point(
