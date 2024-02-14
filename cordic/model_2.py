@@ -23,8 +23,11 @@ class model_2(cordic_model):
         - using adder-subtractor instead of converting to two's complement
         - extending sine/cosine range from -+ pi/2 to -+ pi
         - multiplying log result by two (bit shift)
+        Note: it is quite slow, simulating thousands of samples at once
+        can take many minutes
 
-        Args:
+        Parameters
+        ----------
             mantissa_bits (int): How many mantissa bits are used
             frac_bits (int): How many fractional bits are used
             iterations (int): How many CORDIC iterations are run
@@ -146,17 +149,20 @@ class model_2(cordic_model):
             z = methods.to_double_single(self.rs3_in, self.mb, self.fb)
             x = self.rs1_in
             y = self.rs2_in
-            if z > pi/4:
-                z -= pi/4
-                x = self.rs2_in
-                y = self._adder.add(~self.rs1_in, BitVector(intVal=1, size=self.mb + self.fb))
-            elif z < -pi/4:
-                z += pi/4
+            # Apply initial rotation of 90 degrees if needed
+            # This is because CORDIC cannot rotate more than around 100 degrees
+            if z > pi/2:
+                z = z - pi/2
                 x = self._adder.add(~self.rs2_in, BitVector(intVal=1, size=self.mb + self.fb))
                 y = self.rs1_in
+            elif z < -pi/2:
+                z = z + pi/2
+                x = self.rs2_in
+                y = self._adder.add(~self.rs1_in, BitVector(intVal=1, size=self.mb + self.fb))
+            z = methods.to_fixed_point(z, self.mb, self.fb)
             self._x_in = x
             self._y_in = y
-            self._z_in = methods.to_fixed_point(z, self.mb, self.fb)
+            self._z_in = z
 
     def postprocess(self):
         self.rs1_out = self._x_out
