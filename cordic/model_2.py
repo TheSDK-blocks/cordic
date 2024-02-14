@@ -6,11 +6,11 @@ from numpy import pi
 if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
 
-from model import cordic_model
-import cordic_common.methods as methods
-import cordic_common.cordic_types as cordic_types
-from cordic_common.adder_subtractor import adder_subtractor
-from cordic_common.cordic_constants import (
+from cordic.model import cordic_model
+import cordic.cordic_common.methods as methods
+import cordic.cordic_common.cordic_types as cordic_types
+from cordic.cordic_common.adder_subtractor import adder_subtractor
+from cordic.cordic_common.cordic_constants import (
     atan_lut,
     atanh_lut,
     hyperbolic_repeat_indices,

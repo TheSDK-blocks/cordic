@@ -5,7 +5,7 @@ from BitVector import BitVector
 if not (os.path.abspath("../cordic_common") in sys.path):
     sys.path.append(os.path.abspath("../cordic_common"))
 
-import cordic_common.cordic_types as cordic_types
+import cordic.cordic_common.cordic_types as cordic_types
 
 
 class cordic_model:

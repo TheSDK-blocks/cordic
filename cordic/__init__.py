@@ -20,10 +20,10 @@ import cocotb
 from cocotb.runner import get_runner
 
 # from model_1 import model_1
-from model_2 import model_2
+from cordic.model_2 import model_2
 from BitVector import BitVector
-import cordic_common.methods as methods
-import cordic_common.cordic_types as cordic_types
+import cordic.cordic_common.methods as methods
+import cordic.cordic_common.cordic_types as cordic_types
 
 
 class cordic(rtl, spice, thesdk):
