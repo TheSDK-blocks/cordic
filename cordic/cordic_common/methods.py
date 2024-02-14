@@ -49,7 +49,10 @@ def to_fixed_point(
         bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
         return bit_vec
     elif isinstance(value, int64):
-        return BitVector(intVal=value, size=(mantissa_bits + float_bits))
+        bit_str = Bits(int=value, length=(mantissa_bits + float_bits))
+        # requires bitstring 4.1.0
+        bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
+        return bit_vec
 
 
 def to_double(bit_vector: (BitVector, BitVector)):
