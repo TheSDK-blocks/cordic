@@ -34,8 +34,6 @@ class cordic(rtl, spice, thesdk):
         fraction_bits=4,
         iterations=16,
         function="Sine",
-        mode=cordic_types.cordic_mode.ROTATION,
-        rot_type=cordic_types.rotation_type.CIRCULAR,
     ):
         """Cordic parameters and attributes
         Parameters
@@ -80,8 +78,6 @@ class cordic(rtl, spice, thesdk):
         self.fb = fraction_bits
         self.iters = iterations
         self.function = function
-        self.mode = mode
-        self.type = rot_type
 
         # Function index for hardware implementation
         self.function_idx = 0
@@ -107,26 +103,24 @@ class cordic(rtl, spice, thesdk):
         rs3: np.ndarray = self.IOS.Members["io_in_bits_rs3"].Data
         ops: np.ndarray = self.IOS.Members["io_in_bits_op"].Data
 
-        assert d_in.size == ops.size, "Input vectors must be same size!"
-
-        d_out = np.zeros(d_in.size, dtype=np.int64)
-        rs1_out = np.zeros(d_in.size, dtype=np.int64)
-        rs2_out = np.zeros(d_in.size, dtype=np.int64)
-        rs3_out = np.zeros(d_in.size, dtype=np.int64)
+        d_out = np.zeros(d_in.size, dtype=np.float32)
+        rs1_out = np.zeros(d_in.size, dtype=np.float32)
+        rs2_out = np.zeros(d_in.size, dtype=np.float32)
+        rs3_out = np.zeros(d_in.size, dtype=np.float32)
 
         dut = model_2(self.mb, self.fb, self.iters)
 
         for i in range(0, d_in.size):
-            dut.d_in = methods.to_fixed_point(d_in[i][0], self.mb, self.fb)
+            dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb)
             dut.rs1_in = methods.to_fixed_point(rs1[i][0], self.mb, self.fb)
             dut.rs2_in = methods.to_fixed_point(rs2[i][0], self.mb, self.fb)
             dut.rs3_in = methods.to_fixed_point(rs3[i][0], self.mb, self.fb)
             dut.op = ops[i]
             dut.run()
-            d_out[i] = dut.d_out.int_val()
-            rs1_out[i] = dut.rs1_out.int_val()
-            rs2_out[i] = dut.rs2_out.int_val()
-            rs3_out[i] = dut.rs3_out.int_val()
+            d_out[i] = methods.to_double_single(dut.d_out, self.mb, self.fb)
+            rs1_out[i] = methods.to_double_single(dut.rs1_out, self.mb, self.fb)
+            rs2_out[i] = methods.to_double_single(dut.rs2_out, self.mb, self.fb)
+            rs3_out[i] = methods.to_double_single(dut.rs3_out, self.mb, self.fb)
         self.IOS.Members["io_out_bits_dOut"].Data = d_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_x"].Data = rs1_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_y"].Data = rs2_out.reshape(-1, 1)
