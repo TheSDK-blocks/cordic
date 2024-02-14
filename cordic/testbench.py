@@ -80,7 +80,6 @@ class NRTestbench(CordicTestbench):
         super().__init__(**kwargs)
         from URC_toolkit import URC_toolkit
         from URC import URC
-        from receiver import receiver
         self.URC_tk = URC_toolkit()
         self.sig_gen = None
         self.urc = URC()
@@ -89,7 +88,6 @@ class NRTestbench(CordicTestbench):
         self.dut = Cordic(mantissa_bits=self.mantissa_bits,
                           fraction_bits=self.fraction_bits,
                           iterations=self.iterations)
-        self.receiver = receiver()
 
     # Default path for 5G stimuli yaml
     dsp_test_include_dir = "Entities/ACoreTests/build/tests/programs/dsp-tests/rv32im/sw-build/include"
