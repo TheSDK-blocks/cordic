@@ -18,7 +18,7 @@ from model_2 import model_2
 from BitVector import BitVector
 import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
-from cordic import Cordic
+from cordic import cordic
 import matplotlib.pyplot as plt
 
 import plot_format
@@ -85,7 +85,7 @@ class NRTestbench(CordicTestbench):
         self.urc = URC()
         self.urc.model = "py"
         self.urc.mode = 16
-        self.dut = Cordic(mantissa_bits=self.mantissa_bits,
+        self.dut = cordic(mantissa_bits=self.mantissa_bits,
                           fraction_bits=self.fraction_bits,
                           iterations=self.iterations)
 
@@ -215,7 +215,7 @@ class TrigFuncTestbench(CordicTestbench):
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.dut = Cordic(mantissa_bits=self.mantissa_bits,
+        self.dut = cordic(mantissa_bits=self.mantissa_bits,
                           fraction_bits=self.fraction_bits,
                           iterations=self.iterations)
 

@@ -26,7 +26,7 @@ import cordic_common.methods as methods
 import cordic_common.cordic_types as cordic_types
 
 
-class Cordic(rtl, spice, thesdk):
+class cordic(rtl, spice, thesdk):
     def __init__(
         self,
         *arg,
@@ -321,7 +321,7 @@ if __name__ == "__main__":
 
     for model in models:
         for i, function_name in enumerate(functions):
-            dut = Cordic(
+            dut = cordic(
                 mantissa_bits=10,  # placeholder
                 fractional_bits=10,  # placeholder
                 iterations=iterations,
