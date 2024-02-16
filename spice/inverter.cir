@@ -1,8 +1,0 @@
-*** Example netlist of inverter using ELDO macromodel
-*** This file is parsed to find only the top-level subcircuit
-*** Top level subcircuit name is defined with the line below:
-*** Design cell name: inverter
-
-.SUBCKT inverter A Z
-    INV0 A Z VHI=1 VLO=0 VTHI=0.5 VTLO=0.5 TPD=0.2n
-.ENDS
