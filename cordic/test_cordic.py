@@ -66,7 +66,7 @@ async def test_cordic(dut):
         await RisingEdge(clock)
 
     dut.io_in_valid.value = 0
-    await ClockCycles(dut.clock, 20)
+    await ClockCycles(dut.clock, 25)
 
     # Store outputs
     for i in range(0, len(out_iofiles)):
