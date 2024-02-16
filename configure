@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Test changes
 THISDIR=$( cd `dirname $0` && pwd )
-MODULE=CordicTop
+MODULE=cordic
+CHISELMODULE=CordicTop
 
 #Defines TheSDK environment variables
 . ${THISDIR}/../../TheSDK.config
@@ -42,7 +43,7 @@ show:
 
 chisel: chisel/Makefile
 	cd $THISDIR/chisel && \\
-	\$(MAKE) ${MODULE} VERILOGDIR=${THISDIR}/sv
+	\$(MAKE) ${CHISELMODULE} VERILOGDIR=${THISDIR}/sv
 
 doc:
 	cd $THISDIR/doc && \\
