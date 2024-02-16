@@ -59,7 +59,9 @@ async def test_cordic(dut):
     # Feed inputs
     for i, sample in enumerate(IOS["io_in_bits_rs1"]):
         dut.io_in_bits_rs1.value = int(sample)
-        dut.io_in_bits_op.value = int(IOS["io_in_bits_op"][i])
+        dut.io_in_bits_rs2.value = int(IOS["io_in_bits_rs2"][i])
+        dut.io_in_bits_rs3.value = int(IOS["io_in_bits_rs3"][i])
+        dut.io_in_bits_control.value = int(IOS["io_in_bits_control"][i])
         dut.io_in_valid.value = 1
         await RisingEdge(clock)
 
