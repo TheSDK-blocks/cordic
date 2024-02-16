@@ -50,9 +50,10 @@ doc:
 	make html || (echo "make sim failed $$?"; exit 1)
 
 clean:
-	#cd ${THISDIR}/chisel && \\
-	#make clean && \\
+	cd ${THISDIR}/chisel && \\
+	make clean && \\
 	rm -rf ${THISDIR}/simulations/* 
+	rm -rf sv/CordicTop*
    
 EOF
 exit 0
