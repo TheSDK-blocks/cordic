@@ -126,6 +126,33 @@ class cordic(rtl, spice, thesdk):
         self.IOS.Members["io_out_bits_cordic_y"].Data = rs2_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_z"].Data = rs3_out.reshape(-1, 1)
 
+    def convert_inputs(self):
+        # TODO: restructure and replace with inlist
+        for i in range(0, len(self.IOS.Members["io_in_bits_rs1"].Data)):
+            self.IOS.Members["io_in_bits_rs1"].Data[i] = \
+                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs1"].Data[i][0], self.mb, self.fb).int_val()
+        for i in range(0, len(self.IOS.Members["io_in_bits_rs2"].Data)):
+            self.IOS.Members["io_in_bits_rs2"].Data[i] = \
+                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs2"].Data[i][0], self.mb, self.fb).int_val()
+        for i in range(0, len(self.IOS.Members["io_in_bits_rs3"].Data)):
+            self.IOS.Members["io_in_bits_rs3"].Data[i] = \
+                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs3"].Data[i][0], self.mb, self.fb).int_val()
+
+    def convert_outputs(self):
+        # TODO: replace with outlist
+        converted = [
+            self.IOS.Members["io_out_bits_dOut"],
+            self.IOS.Members["io_out_bits_cordic_x"],
+            self.IOS.Members["io_out_bits_cordic_y"],
+            self.IOS.Members["io_out_bits_cordic_z"],
+        ]
+        for ios in converted:
+            new_arr = np.empty(len(ios.Data), dtype='float32')
+            for i in range(0, len(ios.Data)):
+                new_arr[i] = methods.to_double_single(BitVector(intVal=ios.Data[i][0], size=self.mb+self.fb), self.mb, self.fb)
+            ios.Data = new_arr.reshape(-1, 1)
+
+
     def run(self, *arg):
         """The default name of the method to be executed. This means:
         parameters and attributes
@@ -144,6 +171,7 @@ class cordic(rtl, spice, thesdk):
         if self.model == "py":
             self.main()
         else:
+            self.convert_inputs()
             sim = os.getenv("SIM", "icarus")
             clock_name = "clock"
             reset_name = "reset"
@@ -205,7 +233,8 @@ class cordic(rtl, spice, thesdk):
             )
             runner.test(
                 hdl_toplevel="CordicTop",
-                test_module=f"test_cordic",
+                test_module="test_cordic",
+                test_dir=os.path.join(thesdk.HOME, "Entities/cordic/cordic"),
                 plusargs=[
                     f"+in_iofiles={','.join(in_iofiles)}",
                     f"+in_ionames={','.join(in_ionames)}",
@@ -222,6 +251,7 @@ class cordic(rtl, spice, thesdk):
             for i, iofile in enumerate(out_iofileinsts):
                 iofile.read(dtype="int")
                 self.IOS.Members[out_ionames[i]].Data = iofile.Data
+            self.convert_outputs()
 
     def gen_5G_stimuli(self):
         from URC_toolkit import URC_toolkit
@@ -317,7 +347,7 @@ if __name__ == "__main__":
         for i, function_name in enumerate(functions):
             dut = cordic(
                 mantissa_bits=10,  # placeholder
-                fractional_bits=10,  # placeholder
+                fraction_bits=10,  # placeholder
                 iterations=iterations,
             )
             dut.model = model
@@ -498,7 +528,7 @@ if __name__ == "__main__":
 
             error = abs(output - reference)
             ax1[ax_idx].plot(test_data, reference, label="reference")
-            ax1[ax_idx].plot(test_data, output, label="cordic")
+            ax1[ax_idx].plot(test_data, output, color="green", label="cordic")
             ax2 = ax1[ax_idx].twinx()
             ax2.set_ylabel("|error|")
             ax2.plot(test_data, error, color="red", label="error")
