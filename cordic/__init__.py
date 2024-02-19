@@ -150,6 +150,23 @@ class cordic(rtl, spice, thesdk):
         else:
             return string
 
+    def calc_control_word(self, Rs, Fc):
+        """
+        Parameters
+        ----------
+        Rs : int
+            Sampling rate
+        Fc : int
+            Center frequency
+
+        Returns
+        -------
+        control_word : int
+            Integer control word to achieve given Fc
+        """
+        phase_accum_width = 32
+        return 2**phase_accum_width * Fc // Rs
+
 
     def convert_inputs(self):
         # TODO: restructure and replace with inlist
