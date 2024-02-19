@@ -145,6 +145,8 @@ class cordic(rtl, spice, thesdk):
             return 6
         elif string == "Log":
             return 7
+        else:
+            return string
 
 
     def convert_inputs(self):
