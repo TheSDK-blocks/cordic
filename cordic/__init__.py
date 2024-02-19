@@ -34,6 +34,7 @@ class cordic(rtl, spice, thesdk):
         fraction_bits=4,
         iterations=16,
         function="Sine",
+        repr="fixed-point"
     ):
         """Cordic parameters and attributes
         Parameters
@@ -78,6 +79,7 @@ class cordic(rtl, spice, thesdk):
         self.fb = fraction_bits
         self.iters = iterations
         self.function = function
+        self.repr = repr
 
         # Simulation related properties
         self.waves = False
@@ -108,16 +110,16 @@ class cordic(rtl, spice, thesdk):
         dut = model_2(self.mb, self.fb, self.iters)
 
         for i in range(0, d_in.size):
-            dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb)
-            dut.rs1_in = methods.to_fixed_point(rs1[i][0], self.mb, self.fb)
-            dut.rs2_in = methods.to_fixed_point(rs2[i][0], self.mb, self.fb)
-            dut.rs3_in = methods.to_fixed_point(rs3[i][0], self.mb, self.fb)
+            dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb, self.repr)
+            dut.rs1_in = methods.to_fixed_point(rs1[i][0], self.mb, self.fb, self.repr)
+            dut.rs2_in = methods.to_fixed_point(rs2[i][0], self.mb, self.fb, self.repr)
+            dut.rs3_in = methods.to_fixed_point(rs3[i][0], self.mb, self.fb, self.repr)
             dut.op = ops[i]
             dut.run()
-            d_out[i] = methods.to_double_single(dut.d_out, self.mb, self.fb)
-            rs1_out[i] = methods.to_double_single(dut.rs1_out, self.mb, self.fb)
-            rs2_out[i] = methods.to_double_single(dut.rs2_out, self.mb, self.fb)
-            rs3_out[i] = methods.to_double_single(dut.rs3_out, self.mb, self.fb)
+            d_out[i] = methods.to_double_single(dut.d_out, self.mb, self.fb, self.repr)
+            rs1_out[i] = methods.to_double_single(dut.rs1_out, self.mb, self.fb, self.repr)
+            rs2_out[i] = methods.to_double_single(dut.rs2_out, self.mb, self.fb, self.repr)
+            rs3_out[i] = methods.to_double_single(dut.rs3_out, self.mb, self.fb, self.repr)
         self.IOS.Members["io_out_bits_dOut"].Data = d_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_x"].Data = rs1_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_y"].Data = rs2_out.reshape(-1, 1)
@@ -153,13 +155,13 @@ class cordic(rtl, spice, thesdk):
         # TODO: restructure and replace with inlist
         for i in range(0, len(self.IOS.Members["io_in_bits_rs1"].Data)):
             self.IOS.Members["io_in_bits_rs1"].Data[i] = \
-                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs1"].Data[i][0], self.mb, self.fb).int_val()
+                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs1"].Data[i][0], self.mb, self.fb, self.repr).int_val()
         for i in range(0, len(self.IOS.Members["io_in_bits_rs2"].Data)):
             self.IOS.Members["io_in_bits_rs2"].Data[i] = \
-                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs2"].Data[i][0], self.mb, self.fb).int_val()
+                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs2"].Data[i][0], self.mb, self.fb, self.repr).int_val()
         for i in range(0, len(self.IOS.Members["io_in_bits_rs3"].Data)):
             self.IOS.Members["io_in_bits_rs3"].Data[i] = \
-                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs3"].Data[i][0], self.mb, self.fb).int_val()
+                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs3"].Data[i][0], self.mb, self.fb, self.repr).int_val()
         for i in range(0, len(self.IOS.Members["io_in_bits_control"].Data)):
             self.IOS.Members["io_in_bits_control"].Data[i] = \
                 self.control_string_to_int(self.IOS.Members["io_in_bits_control"].Data[i][0])
@@ -175,7 +177,7 @@ class cordic(rtl, spice, thesdk):
         for ios in converted:
             new_arr = np.empty(len(ios.Data), dtype='float32')
             for i in range(0, len(ios.Data)):
-                new_arr[i] = methods.to_double_single(BitVector(intVal=ios.Data[i][0], size=self.mb+self.fb), self.mb, self.fb)
+                new_arr[i] = methods.to_double_single(BitVector(intVal=ios.Data[i][0], size=self.mb+self.fb), self.mb, self.fb, self.repr)
             ios.Data = new_arr.reshape(-1, 1)
 
 
