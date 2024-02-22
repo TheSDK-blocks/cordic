@@ -217,7 +217,7 @@ class cordic(rtl, spice, thesdk):
             self.main()
         else:
             self.convert_inputs()
-            sim = os.getenv("SIM", "icarus")
+            sim = os.getenv("SIM", "verilator") # can be also icarus
             clock_name = "clock"
             reset_name = "reset"
             in_ios = {
@@ -268,6 +268,11 @@ class cordic(rtl, spice, thesdk):
                 out_iofileinsts.append(file)
 
             runner = get_runner(sim)
+            if sim == "verilator":
+                build_args = ["--trace"]
+            else
+                build_args = []
+
             runner.build(
                 verilog_sources=[
                     self.vlogsrcpath + "/CordicTop.v",
@@ -275,6 +280,7 @@ class cordic(rtl, spice, thesdk):
                 ],
                 hdl_toplevel="CordicTop",
                 always=True,
+                build_args=build_args
             )
             runner.test(
                 hdl_toplevel="CordicTop",
