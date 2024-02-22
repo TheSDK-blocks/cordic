@@ -4,7 +4,7 @@ from BitVector import BitVector
 from math import modf, floor, sqrt
 from bitstring import Bits
 from typing import Union
-from numpy import int64, pi
+from numpy import int64, pi, float32
 
 if not (os.path.dirname(os.path.abspath(__file__)) in sys.path):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -30,13 +30,14 @@ def calc_k(iters, rot_type: rotation_type):
 
 
 def to_fixed_point(
-    value: Union[float, int, int64], mantissa_bits: int, float_bits: int, repr: str
+    value: Union[float, float32, int, int64], mantissa_bits: int, float_bits: int, repr: str = "fixed-point"
 ):
     """
-    Converts float value into fixed-point representation.
-    Fixed point is represented as BitVector
+    Converts float or int value into fixed-point representation.
+    Float values are translated to fixed-point before converting to BitVector.
+    Int values are simply converted into a BitVector.
     """
-    if isinstance(value, float):
+    if isinstance(value, float) or isinstance(value, float32):
         if repr == "fixed-point":
             (frac, integer_signed) = modf(value)
             sign = value < 0
@@ -62,6 +63,9 @@ def to_fixed_point(
         # requires bitstring 4.1.0
         bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
         return bit_vec
+
+    else:
+        raise ValueError("Unsupported type: " + str(type(value)))
 
 
 def to_double(bit_vector: (BitVector, BitVector)):
