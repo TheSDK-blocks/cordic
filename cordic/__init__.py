@@ -270,7 +270,7 @@ class cordic(rtl, spice, thesdk):
             runner = get_runner(sim)
             if sim == "verilator":
                 build_args = ["--trace"]
-            else
+            else:
                 build_args = []
 
             runner.build(
