@@ -5,7 +5,11 @@ MODULE=cordic
 CHISELMODULE=CordicTop
 
 #Defines TheSDK environment variables
-. ${THISDIR}/../../TheSDK.config
+if [ -f "${THISDIR}../../TheSDK.config" ]; then
+	. ${THISDIR}/../../TheSDK.config
+else
+	echo "No TheSDK project detected. Run ./configure at TheSDK level."
+fi
 
 #echo "Configuring FFT chisel generator"
 #cd $THISDIR/chisel && ./configure && cd ..
@@ -19,16 +23,14 @@ cat << EOF > ${THISDIR}/Makefile
 
 all: chisel sim
 
-models ?= py
-mantissa_bits ?= 4
-fraction_bits ?= 12
-iterations ?= 14
-cordic_ops ?= Sine,Cosine
+model ?= py
+config ?= basic
+config_file ?= ${THISDIR}/chisel/configs/\$(config).yml
 waves ?= True
 show ?= True
 
-MAINPARAMS_PY = --models \$(models) --mantissa-bits \$(mantissa_bits) --fraction-bits \$(fraction_bits) \\
---iterations \$(iterations) --cordic-ops \$(cordic_ops) --waves \$(waves) --show \$(show)
+MAINPARAMS_PY = --model \$(model) --waves \$(waves) --show \$(show)
+MAINPARAMS_CHISEL = config_file=\$(config_file)
 
 chisel/Makefile:
 	cd chisel && ./configure
@@ -43,7 +45,7 @@ show:
 
 chisel: chisel/Makefile
 	cd $THISDIR/chisel && \\
-	\$(MAKE) ${CHISELMODULE} VERILOGDIR=${THISDIR}/sv
+	\$(MAKE) ${CHISELMODULE} \$(MAINPARAMS_CHISEL) VERILOGDIR=${THISDIR}/sv
 
 doc:
 	cd $THISDIR/doc && \\
