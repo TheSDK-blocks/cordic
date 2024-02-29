@@ -149,7 +149,7 @@ class model_2(cordic_model):
         elif self.op == "Upconvert":
             self._mode = cordic_types.cordic_mode.ROTATION
             self._type = cordic_types.rotation_type.CIRCULAR
-            z = methods.to_double_single(self.rs3_in, self.mb, self.fb)
+            z = methods.to_double_single(self.rs3_in, self.mb, self.fb, self.repr)
             x = self.rs1_in
             y = self.rs2_in
             # Apply initial rotation of 90 degrees if needed
