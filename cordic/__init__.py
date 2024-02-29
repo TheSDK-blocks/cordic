@@ -33,7 +33,6 @@ class cordic(rtl, spice, thesdk):
         mantissa_bits=12,
         fraction_bits=4,
         iterations=16,
-        function="Sine",
         repr="fixed-point"
     ):
         """Cordic parameters and attributes
@@ -52,8 +51,8 @@ class cordic(rtl, spice, thesdk):
             iterations :
             How many iterations the CORDIC is supposed to have
 
-            function :
-            Which operation the CORDIC is calculating
+            repr :
+            Number representation: fixed-point or pi (number vary from -pi to +pi)
 
         """
         self.print_log(type="I", msg="Initializing %s" % (__name__))
@@ -78,7 +77,6 @@ class cordic(rtl, spice, thesdk):
         self.mb = mantissa_bits
         self.fb = fraction_bits
         self.iters = iterations
-        self.function = function
         self.repr = repr
 
         # Simulation related properties
@@ -308,20 +306,20 @@ if __name__ == "__main__":
     """Quick and dirty self test"""
     import numpy as np
     import matplotlib.pyplot as plt
-    dut = cordic(mantissa_bits=4, fraction_bits=12, iterations=16, function="Sine", repr="fixed-point")
-
+    dut = cordic(mantissa_bits=4, fraction_bits=12, iterations=16, repr="fixed-point")
+    dut.model = "py"
+    dut.repr = "fixed-point"
+    function = "Cosine"
     test_data = \
         np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
     size = np.size(test_data)
-    dut.model = "py"
-    dut.repr = "fixed-point"
     if dut.model == "sv":
         dut.print_log(type="I", msg="Note: this test requires building CORDIC with trig config.")
     dut.IOS.Members["io_in_bits_rs1"].Data = np.copy(test_data)
     dut.IOS.Members["io_in_bits_rs2"].Data = np.zeros(size, dtype=np.int64).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_rs3"].Data = np.zeros(size, dtype=np.int64).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_control"].Data = np.full(
-        dut.IOS.Members["io_in_bits_rs1"].Data.size, dut.function
+        dut.IOS.Members["io_in_bits_rs1"].Data.size, function
     ).reshape(-1, 1)
 
     dut.run()
@@ -332,10 +330,10 @@ if __name__ == "__main__":
     ).reshape(-1, 1)
     fig, ax = plt.subplots()
     bits_info = f" mb={dut.mb}, fb={dut.fb}"
-    ax.set_title(f"{dut.model} {dut.function}" + bits_info)
+    ax.set_title(f"{dut.model} {function}" + bits_info)
     ax.set_xlabel(r"$\theta$")
     ax.set_ylabel(r"$\sin(\theta)$")
-    reference = np.sin(test_data)
+    reference = np.cos(test_data)
     error = abs(output - reference)
     ax.plot(test_data, reference, label="reference")
     ax.plot(test_data, output, label="cordic", color="green")
