@@ -5,7 +5,7 @@ MODULE=cordic
 CHISELMODULE=CordicTop
 
 #Defines TheSDK environment variables
-if [ -f "${THISDIR}../../TheSDK.config" ]; then
+if [ -f ${THISDIR}/../../TheSDK.config ]; then
 	. ${THISDIR}/../../TheSDK.config
 else
 	echo "No TheSDK project detected. Run ./configure at TheSDK level."
