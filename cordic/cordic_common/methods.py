@@ -4,7 +4,7 @@ from BitVector import BitVector
 from math import modf, floor, sqrt
 from bitstring import Bits
 from typing import Union
-from numpy import int64, pi, float32, unpackbits
+from numpy import int32, pi, float32, unpackbits
 
 if not (os.path.dirname(os.path.abspath(__file__)) in sys.path):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -30,7 +30,7 @@ def calc_k(iters, rot_type: rotation_type):
 
 
 def to_fixed_point(
-    value: Union[float, float32, int, int64], mantissa_bits: int, float_bits: int, repr: str,
+    value: Union[float, float32, int, int32], mantissa_bits: int, float_bits: int, repr: str,
     ret_type: str = "BitVector"
 ):
     """
@@ -49,12 +49,12 @@ def to_fixed_point(
             if sign:
                 bits *= -1
             bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
-            # requires bitstring 4.1.0
-            bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
             if ret_type == "BitVector":
+                # requires bitstring 4.1.0
+                bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
                 return bit_vec
             elif ret_type == "numpy":
-                return (value / max_val) * 2**64
+                return int32((value / max_val) * 2**32)
         elif repr == "pi":
             bits = int(((2 ** (mantissa_bits + float_bits - 1)) * value) / pi)
             bit_str = Bits(int=bits,
@@ -63,11 +63,11 @@ def to_fixed_point(
             if ret_type == "BitVector":
                 return bit_vec
             elif ret_type == "numpy":
-                return (value / (2 * pi) * 2**64)
+                return int32(value / (2 * pi) * 2**32)
         else:
             raise ValueError("Undefined repr: " + repr)
 
-    elif isinstance(value, int64):
+    elif isinstance(value, int32):
         bit_str = Bits(int=value, length=(mantissa_bits + float_bits))
         # requires bitstring 4.1.0
         bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
@@ -80,7 +80,7 @@ def to_fixed_point(
         raise ValueError("Unsupported type: " + str(type(value)))
 
 
-def to_double(bit_vector: (BitVector, BitVector)):
+def to_double(bit_vector):
     """
     Converts fixed-point value, represented by tuple (BitVector, BitVector),
     where index 0 holds mantissa and index 1 fractional,
@@ -90,7 +90,7 @@ def to_double(bit_vector: (BitVector, BitVector)):
     return to_double_single(bt_vec, bit_vector[0].length(), bit_vector[1].length())
 
 
-def to_double_single(bit_vector: Union[BitVector, int64], mantissa_bits: int, float_bits: int, repr: str):
+def to_double_single(bit_vector, mantissa_bits: int, float_bits: int, repr: str):
     """
     Converts fixed-point value, represented by BitVector, into float.
     Assumed that mantissa is located in bits 0:mantissa_bits, and
@@ -115,11 +115,11 @@ def to_double_single(bit_vector: Union[BitVector, int64], mantissa_bits: int, fl
         elif repr == "pi":
             intval = bt_vec.int_val()
             return sign * ((intval / 2**(mantissa_bits + float_bits - 1)) * pi)
-    elif isinstance(bit_vector, int64):
+    elif isinstance(bit_vector, int32):
         max_val = 2**mantissa_bits
         if repr == "fixed-point":
-            return (bit_vector / 2**64) * max_val
+            return (bit_vector / 2**32) * max_val
         elif repr == "pi":
-            return  (bit_vector / 2**64) * 2 * pi
+            return  (bit_vector / 2**32) * 2 * pi
 
 

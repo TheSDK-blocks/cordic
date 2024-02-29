@@ -27,7 +27,9 @@ class model_3():
                  use_phase_accum: bool = False,
                  phase_accum_width: int = 32
                  ):
-        """model_3 is meant to be fast
+        """model_3 is meant to be fast. 
+        model_2 with BitVector was agonizingly slow.
+        Thus, we now use fixed 32 bits numpy values.
 
         Parameters
         ----------
@@ -35,20 +37,20 @@ class model_3():
             frac_bits (int): How many fractional bits are used
             iterations (int): How many CORDIC iterations are run
         """
-        self.d_in = np.int64(0)
-        self.rs1_in = np.int64(0)
-        self.rs2_in = np.int64(0)
-        self.rs3_in = np.int64(0)
-        self.d_out = np.int64(0)
-        self.rs1_out = np.int64(0)
-        self.rs2_out = np.int64(0)
-        self.rs3_out = np.int64(0)
-        self._x_in  = np.int64(0)
-        self._y_in  = np.int64(0)
-        self._z_in  = np.int64(0)
-        self._x_out = np.int64(0)
-        self._y_out = np.int64(0)
-        self._z_out = np.int64(0)
+        self.d_in = np.int32(0)
+        self.rs1_in = np.int32(0)
+        self.rs2_in = np.int32(0)
+        self.rs3_in = np.int32(0)
+        self.d_out = np.int32(0)
+        self.rs1_out = np.int32(0)
+        self.rs2_out = np.int32(0)
+        self.rs3_out = np.int32(0)
+        self._x_in  = np.int32(0)
+        self._y_in  = np.int32(0)
+        self._z_in  = np.int32(0)
+        self._x_out = np.int32(0)
+        self._y_out = np.int32(0)
+        self._z_out = np.int32(0)
         self.mb = mantissa_bits
         self.fb = frac_bits
         self.iters = iterations
@@ -95,7 +97,7 @@ class model_3():
         # Can usually be 2 or 3 depending whether there are less or
         # more than 40 iterations
         n_repeats = 0
-        if self.type == cordic_types.rotation_type.HYPERBOLIC:
+        if self._type == cordic_types.rotation_type.HYPERBOLIC:
             for i in range(0, self.iters):
                 if i in hyperbolic_repeat_indices:
                     n_repeats += 1
@@ -104,12 +106,12 @@ class model_3():
         atanh_lut_fp = []
         for i in range(0, len(atan_lut)):
             fx_pnt = methods.to_fixed_point(atan_lut[i], self.mb, self.fb, self.repr, ret_type="numpy")
-            atan_lut_fp.append(np.int64(fx_pnt))
+            atan_lut_fp.append(np.int32(fx_pnt))
             if i != 0:
                 fx_pnt2 = methods.to_fixed_point(atanh_lut[i], self.mb, self.fb, self.repr, ret_type="numpy")
-                atanh_lut_fp.append(np.int64(fx_pnt2))
+                atanh_lut_fp.append(np.int32(fx_pnt2))
             else:
-                atanh_lut_fp.append(np.int64(0))
+                atanh_lut_fp.append(np.int32(0))
 
         if self._type == cordic_types.rotation_type.CIRCULAR:
             lut_idx = 0
@@ -118,12 +120,12 @@ class model_3():
         repeats = 0
         repeat = False
 
-        x_vec = np.int64(self._x_in)
-        y_vec = np.int64(self._y_in)
-        z_vec = np.int64(self._z_in)
-        x_shift_vec = np.int64(0)
-        y_shift_vec = np.int64(0)
-        atan_val_vec = np.int64(0)
+        x_vec = np.int32(self._x_in)
+        y_vec = np.int32(self._y_in)
+        z_vec = np.int32(self._z_in)
+        x_shift_vec = np.int32(0)
+        y_shift_vec = np.int32(0)
+        atan_val_vec = np.int32(0)
 
         for i in range(0, self.iters + n_repeats):
             bypass = False
@@ -149,14 +151,14 @@ class model_3():
 
             if lut_idx < len(atan_lut):
                 if self._type == cordic_types.rotation_type.CIRCULAR:
-                    atan_val_vec[i] = atan_lut_fp[lut_idx]
+                    atan_val_vec = atan_lut_fp[lut_idx]
                 elif self._type == cordic_types.rotation_type.HYPERBOLIC:
-                    atan_val_vec[i] = atanh_lut_fp[lut_idx]
+                    atan_val_vec = atanh_lut_fp[lut_idx]
             else:
                 atan_val_vec = 1 << lut_idx
 
-            x_shift_vec = x_vec >> lut_idx
-            y_shift_vec = y_vec >> lut_idx
+            x_shift_vec = np.int32(x_vec >> lut_idx)
+            y_shift_vec = np.int32(y_vec >> lut_idx)
 
             # sigma = True means sigma = 1
             # sigma = False means sigma = -1
@@ -192,3 +194,4 @@ class model_3():
         self._x_out = x_vec
         self._y_out = y_vec
         self._z_out = z_vec
+        self.postprocess()

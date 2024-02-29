@@ -62,8 +62,8 @@ class cordic(rtl, spice, thesdk):
 
         self.model = "py"  # Can be set externalouly, but is not propagated
 
-        with open(config_file, 'r'):
-            cordic_config = yaml.safe_load(config_file)
+        with open(config_file, 'r') as cfile:
+            cordic_config = yaml.safe_load(cfile)
             self.mb = cordic_config['mantissa-bits']
             self.fb = cordic_config['fraction-bits']
             self.iters = cordic_config['iterations']
@@ -74,6 +74,8 @@ class cordic(rtl, spice, thesdk):
             self.enable_vectoring = cordic_config.get('enable-vectoring', False)
             self.preprocessor_class = cordic_config.get('preprocessor-class', "Basic")
             self.postprocessor_class = cordic_config.get('postprocessor-class', "Basic")
+            self.use_phase_accum = None
+            self.phase_accum_width = None
             if cordic_config.get('up-convert-config'):
                 self.use_phase_accum = cordic_config["up-convert-config"]["use-phase-accum"]
                 self.phase_accum_width = cordic_config["up-convert-config"]["phase-accum-width"]
@@ -114,16 +116,17 @@ class cordic(rtl, spice, thesdk):
                       self.phase_accum_width)
 
         for i in range(0, d_in.size):
-            dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb, self.repr)
-            dut.rs1_in = methods.to_fixed_point(rs1[i][0], self.mb, self.fb, self.repr)
-            dut.rs2_in = methods.to_fixed_point(rs2[i][0], self.mb, self.fb, self.repr)
-            dut.rs3_in = methods.to_fixed_point(rs3[i][0], self.mb, self.fb, self.repr)
+            dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
+            dut.rs1_in = methods.to_fixed_point(rs1[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
+            dut.rs2_in = methods.to_fixed_point(rs2[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
+            dut.rs3_in = methods.to_fixed_point(rs3[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
             dut.op = ops[i]
             dut.run()
             d_out[i] = methods.to_double_single(dut.d_out, self.mb, self.fb, self.repr)
             rs1_out[i] = methods.to_double_single(dut.rs1_out, self.mb, self.fb, self.repr)
             rs2_out[i] = methods.to_double_single(dut.rs2_out, self.mb, self.fb, self.repr)
             rs3_out[i] = methods.to_double_single(dut.rs3_out, self.mb, self.fb, self.repr)
+
         self.IOS.Members["io_out_bits_dOut"].Data = d_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_x"].Data = rs1_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_y"].Data = rs2_out.reshape(-1, 1)
@@ -312,22 +315,29 @@ if __name__ == "__main__":
     """Quick and dirty self test"""
     import numpy as np
     import matplotlib.pyplot as plt
-    dut = cordic(mantissa_bits=4, fraction_bits=12, iterations=16, repr="fixed-point")
+    import cProfile
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config_file",
+        type=str
+    )
+    args = parser.parse_args()
+    dut = cordic(config_file=args.config_file)
     dut.model = "py"
     dut.repr = "fixed-point"
-    function = "Cosine"
+    function = "Sine"
     test_data = \
         np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
     size = np.size(test_data)
     if dut.model == "sv":
         dut.print_log(type="I", msg="Note: this test requires building CORDIC with trig config.")
     dut.IOS.Members["io_in_bits_rs1"].Data = np.copy(test_data)
-    dut.IOS.Members["io_in_bits_rs2"].Data = np.zeros(size, dtype=np.int64).reshape(-1, 1)
-    dut.IOS.Members["io_in_bits_rs3"].Data = np.zeros(size, dtype=np.int64).reshape(-1, 1)
+    dut.IOS.Members["io_in_bits_rs2"].Data = np.zeros(size, dtype=np.int32).reshape(-1, 1)
+    dut.IOS.Members["io_in_bits_rs3"].Data = np.zeros(size, dtype=np.int32).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_control"].Data = np.full(
         dut.IOS.Members["io_in_bits_rs1"].Data.size, function
     ).reshape(-1, 1)
-
     dut.run()
     output = np.array(
         [
@@ -339,7 +349,7 @@ if __name__ == "__main__":
     ax.set_title(f"{dut.model} {function}" + bits_info)
     ax.set_xlabel(r"$\theta$")
     ax.set_ylabel(r"$\sin(\theta)$")
-    reference = np.cos(test_data)
+    reference = np.sin(test_data)
     error = abs(output - reference)
     ax.plot(test_data, reference, label="reference")
     ax.plot(test_data, output, label="cordic", color="green")
