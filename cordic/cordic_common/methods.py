@@ -30,7 +30,7 @@ def calc_k(iters, rot_type: rotation_type):
 
 
 def to_fixed_point(
-    value: Union[float, float32, int, int64], mantissa_bits: int, float_bits: int, repr: str = "fixed-point"
+    value: Union[float, float32, int, int64], mantissa_bits: int, float_bits: int, repr: str
 ):
     """
     Converts float or int value into fixed-point representation.

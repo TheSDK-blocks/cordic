@@ -107,7 +107,7 @@ class cordic(rtl, spice, thesdk):
         rs2_out = np.zeros(d_in.size, dtype=np.float32)
         rs3_out = np.zeros(d_in.size, dtype=np.float32)
 
-        dut = model_2(self.mb, self.fb, self.iters)
+        dut = model_2(self.mb, self.fb, self.iters, self.repr)
 
         for i in range(0, d_in.size):
             dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb, self.repr)
@@ -128,6 +128,7 @@ class cordic(rtl, spice, thesdk):
 
     def control_string_to_int(self, string):
         """
+        Used with trig config.
         Convert function name in string to an int.
         These are defined in the chisel model (e.g. TrigFuncPreProcessor)
         """
@@ -217,7 +218,7 @@ class cordic(rtl, spice, thesdk):
             self.main()
         else:
             self.convert_inputs()
-            sim = os.getenv("SIM", "verilator") # can be also icarus
+            sim = os.getenv("SIM", "icarus") # use verilator for faster simulation (version > 5)
             clock_name = "clock"
             reset_name = "reset"
             in_ios = {
@@ -307,12 +308,15 @@ if __name__ == "__main__":
     """Quick and dirty self test"""
     import numpy as np
     import matplotlib.pyplot as plt
-    dut = cordic(mantissa_bits=4, fraction_bits=12, iterations=16, function="Sine")
+    dut = cordic(mantissa_bits=4, fraction_bits=12, iterations=16, function="Sine", repr="fixed-point")
 
     test_data = \
         np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
     size = np.size(test_data)
-    dut.model = "sv"
+    dut.model = "py"
+    dut.repr = "fixed-point"
+    if dut.model == "sv":
+        dut.print_log(type="I", msg="Note: this test requires building CORDIC with trig config.")
     dut.IOS.Members["io_in_bits_rs1"].Data = np.copy(test_data)
     dut.IOS.Members["io_in_bits_rs2"].Data = np.zeros(size, dtype=np.int64).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_rs3"].Data = np.zeros(size, dtype=np.int64).reshape(-1, 1)

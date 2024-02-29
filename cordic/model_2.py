@@ -18,7 +18,7 @@ from cordic.cordic_common.cordic_constants import (
 
 
 class model_2(cordic_model):
-    def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int):
+    def __init__(self, mantissa_bits: int, frac_bits: int, iterations: int, repr: str):
         """model_2 improves from model_1 by:
         - using adder-subtractor instead of converting to two's complement
         - extending sine/cosine range from -+ pi/2 to -+ pi
@@ -32,7 +32,7 @@ class model_2(cordic_model):
             frac_bits (int): How many fractional bits are used
             iterations (int): How many CORDIC iterations are run
         """
-        super().__init__(mantissa_bits, frac_bits, iterations)
+        super().__init__(mantissa_bits, frac_bits, iterations, repr)
 
         # Private members
         self._x_in: BitVector = BitVector(intVal=0, size=(self.mb + self.fb))
@@ -55,17 +55,19 @@ class model_2(cordic_model):
         self._y_in = self.rs2_in
         self._z_in = self.rs3_in
 
-        mant_one_vec = methods.to_fixed_point(1.0, self.mb, self.fb)
+        mant_one_vec = methods.to_fixed_point(1.0, self.mb, self.fb, self.repr)
         zero_vec = BitVector(intVal=0, size=(self.mb + self.fb))
         K_vec = methods.to_fixed_point(
             1 / methods.calc_k(self.iters, cordic_types.rotation_type.CIRCULAR),
             self.mb,
             self.fb,
+            self.repr
         )
         Kh_vec = methods.to_fixed_point(
             1 / methods.calc_k(self.iters, cordic_types.rotation_type.HYPERBOLIC),
             self.mb,
             self.fb,
+            self.repr
         )
 
         sincos_addsub = 0
@@ -80,13 +82,14 @@ class model_2(cordic_model):
                 pi,
                 self.mb,
                 self.fb,
+                self.repr
             )
             # TODO: what is the efficient way to do this in hardware??
-            if methods.to_double_single(self.d_in, self.mb, self.fb) > pi/2:
+            if methods.to_double_single(self.d_in, self.mb, self.fb, self.repr) > pi/2:
                 addee = pi_vec
                 sincos_addsub = 1
                 self._invert_res = True
-            elif methods.to_double_single(self.d_in, self.mb, self.fb) < -pi/2:
+            elif methods.to_double_single(self.d_in, self.mb, self.fb, self.repr) < -pi/2:
                 addee = pi_vec
                 self._invert_res = True
             else:
@@ -159,7 +162,7 @@ class model_2(cordic_model):
                 z = z + pi/2
                 x = self.rs2_in
                 y = self._adder.add(~self.rs1_in, BitVector(intVal=1, size=self.mb + self.fb))
-            z = methods.to_fixed_point(z, self.mb, self.fb)
+            z = methods.to_fixed_point(z, self.mb, self.fb, self.repr)
             self._x_in = x
             self._y_in = y
             self._z_in = z
@@ -239,10 +242,10 @@ class model_2(cordic_model):
         atan_lut_fp = []
         atanh_lut_fp = []
         for i in range(0, len(atan_lut)):
-            fx_pnt = methods.to_fixed_point(atan_lut[i], self.mb, self.fb)
+            fx_pnt = methods.to_fixed_point(atan_lut[i], self.mb, self.fb, self.repr)
             atan_lut_fp.append(fx_pnt)
             if i != 0:
-                fx_pnt2 = methods.to_fixed_point(atanh_lut[i], self.mb, self.fb)
+                fx_pnt2 = methods.to_fixed_point(atanh_lut[i], self.mb, self.fb, self.repr)
                 atanh_lut_fp.append(fx_pnt2)
             else:
                 atanh_lut_fp.append(BitVector(intVal=0, size=(self.mb + self.fb)))
