@@ -18,43 +18,32 @@ from spice import spice
 import numpy as np
 import cocotb
 from cocotb.runner import get_runner
+import yaml
 
 # from model_1 import model_1
-from cordic.model_2 import model_2
+from cordic.model_3 import model_3
 from BitVector import BitVector
 import cordic.cordic_common.methods as methods
 import cordic.cordic_common.cordic_types as cordic_types
 
 
 class cordic(rtl, spice, thesdk):
-    def __init__(
-        self,
-        *arg,
-        mantissa_bits=12,
-        fraction_bits=4,
-        iterations=16,
-        repr="fixed-point"
-    ):
-        """Cordic parameters and attributes
-        Parameters
-        ----------
-            *arg :
+    """Cordic parameters and attributes
+    Parameters
+    ----------
+        *arg :
             If any arguments are defined, the first one should be the
             parent instance
 
-            mantissa_bits :
-            How many mantissa bits are used in the fixed-point repr.
+        config_file : str
+            Path to CORDIC config file
 
-            fractional_bits :
-            How many fractional bits are used in the fixed-point repr.
-
-            iterations :
-            How many iterations the CORDIC is supposed to have
-
-            repr :
-            Number representation: fixed-point or pi (number vary from -pi to +pi)
-
-        """
+    """
+    def __init__(
+        self,
+        *arg,
+        config_file
+    ):
         self.print_log(type="I", msg="Initializing %s" % (__name__))
 
         self.IOS.Members["io_in_valid"] = IO()
@@ -73,11 +62,21 @@ class cordic(rtl, spice, thesdk):
 
         self.model = "py"  # Can be set externalouly, but is not propagated
 
-        # Model related properties
-        self.mb = mantissa_bits
-        self.fb = fraction_bits
-        self.iters = iterations
-        self.repr = repr
+        with open(config_file, 'r'):
+            cordic_config = yaml.safe_load(config_file)
+            self.mb = cordic_config['mantissa-bits']
+            self.fb = cordic_config['fraction-bits']
+            self.iters = cordic_config['iterations']
+            self.repr = cordic_config.get('number-repr', "fixed-point")
+            self.enable_circular = cordic_config.get('enable-circular', False)
+            self.enable_hyperbolic = cordic_config.get('enable-hyperbolic', False)
+            self.enable_rotational = cordic_config.get('enable-rotational', False)
+            self.enable_vectoring = cordic_config.get('enable-vectoring', False)
+            self.preprocessor_class = cordic_config.get('preprocessor-class', "Basic")
+            self.postprocessor_class = cordic_config.get('postprocessor-class', "Basic")
+            if cordic_config.get('up-convert-config'):
+                self.use_phase_accum = cordic_config["up-convert-config"]["use-phase-accum"]
+                self.phase_accum_width = cordic_config["up-convert-config"]["phase-accum-width"]
 
         # Simulation related properties
         self.waves = False
@@ -105,7 +104,14 @@ class cordic(rtl, spice, thesdk):
         rs2_out = np.zeros(d_in.size, dtype=np.float32)
         rs3_out = np.zeros(d_in.size, dtype=np.float32)
 
-        dut = model_2(self.mb, self.fb, self.iters, self.repr)
+        dut = model_3(self.mb,
+                      self.fb,
+                      self.iters,
+                      self.repr,
+                      self.preprocessor_class,
+                      self.postprocessor_class,
+                      self.use_phase_accum,
+                      self.phase_accum_width)
 
         for i in range(0, d_in.size):
             dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb, self.repr)
@@ -163,7 +169,7 @@ class cordic(rtl, spice, thesdk):
         control_word : int
             Integer control word to achieve given Fc
         """
-        phase_accum_width = 32
+        phase_accum_width = self.phase_accum_width
         return 2**phase_accum_width * Fc // Rs
 
 
