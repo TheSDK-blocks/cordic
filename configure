@@ -23,13 +23,9 @@ cat << EOF > ${THISDIR}/Makefile
 
 all: chisel sim
 
-model ?= py
 config ?= basic
 config_file ?= ${THISDIR}/chisel/configs/\$(config).yml
-waves ?= True
-show ?= True
 
-MAINPARAMS_PY = --model \$(model) --waves \$(waves) --show \$(show)
 MAINPARAMS_CHISEL = config_file=\$(config_file)
 
 chisel/Makefile:
@@ -37,7 +33,7 @@ chisel/Makefile:
 
 sim:
 	cd ${THISDIR}/${MODULE} && \\
-	${PYL} __init__.py \$(MAINPARAMS_PY) || (echo "make sim failed $$?"; exit 1)
+	${PYL} __init__.py || (echo "make sim failed $$?"; exit 1)
 
 show:
 	cd ${THISDIR}/${MODULE} && \\
