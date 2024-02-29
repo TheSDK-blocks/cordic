@@ -33,7 +33,7 @@ chisel/Makefile:
 
 sim:
 	cd ${THISDIR}/${MODULE} && \\
-	${PYL} __init__.py || (echo "make sim failed $$?"; exit 1)
+	${PYL} __init__.py --config_file \$(config_file) || (echo "make sim failed $$?"; exit 1)
 
 show:
 	cd ${THISDIR}/${MODULE} && \\
