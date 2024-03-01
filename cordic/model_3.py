@@ -63,7 +63,7 @@ class model_3():
         self.use_phase_accum = use_phase_accum
         self.phase_accum_width = phase_accum_width
 
-    def preprocess(self):
+    def trigfunc_preprocess(self):
         K_vec = methods.to_fixed_point(
             1 / methods.calc_k(self.iters, cordic_types.rotation_type.CIRCULAR),
             self.mb,
@@ -71,28 +71,106 @@ class model_3():
             self.repr,
             ret_type="numpy"
         )
-        if self.preproc_class == "TrigFunc":
-            if self.op == "Sine" or self.op == "Cosine":
-                self._mode = cordic_types.cordic_mode.ROTATION
-                self._type = cordic_types.rotation_type.CIRCULAR
-                self._x_in = K_vec
-                self._y_in = 0
-                self._z_in = self.d_in
+        Kh_vec = methods.to_fixed_point(
+            1 / methods.calc_k(self.iters, cordic_types.rotation_type.HYPERBOLIC),
+            self.mb,
+            self.fb,
+            self.repr,
+            ret_type="numpy"
+        )
+
+        if self.op == 0 or self.op == 1:
+            # SINE or COSINE
+            # TODO: pre-rotation
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.CIRCULAR
+            self._x_in = K_vec
+            self._y_in = 0
+            self._z_in = self.d_in
+        elif self.op == 2:
+            # ARCTAN
+            self._mode = cordic_types.cordic_mode.VECTORING
+            self._type = cordic_types.rotation_type.CIRCULAR
+            self._x_in = methods.to_fixed_point(1.0, self.mb, self.fb,
+                                                self.repr, ret_type="numpy")
+            self._y_in = self.d_in
+            self._z_in = 0
+        elif self.op == 3 or self.op == 4:
+            # SINH or COSH
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in = Kh_vec
+            self._y_in = 0
+            self._z_in = self.d_in
+        elif self.op == 5:
+            # ARCTANH
+            self._mode = cordic_types.cordic_mode.VECTORING
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in = methods.to_fixed_point(1.0, self.mb, self.fb,
+                                                self.repr, ret_type="numpy")
+            self._y_in = self.d_in
+            self._z_in = 0
+        elif self.op == 6:
+            # EXPONENTIAL
+            self._mode = cordic_types.cordic_mode.ROTATION
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in = Kh_vec
+            self._y_in = Kh_vec
+            self._z_in = self.d_in
+        elif self.op == 7:
+            # LOG
+            self._mode = cordic_types.cordic_mode.VECTORING
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+            self._x_in 
+            one = methods.to_fixed_point(1.0, self.mb, self.fb,
+                                         self.repr, ret_type="numpy")
+            self._x_in = self.d_in + one
+            self._y_in = self.d_in - one
+            self._z_in = 0
+        else:
+            raise ValueError(f"Unidentified operation in preprocessor: {self.op}")
+
     
-    def postprocess(self):
+    def trigfunc_postprocess(self):
         self.rs1_out = self._x_out
         self.rs2_out = self._y_out
         self.rs3_out = self._z_out
-        if self.op == "Sine":
+        if self.op == 0:
+            # SINE
             d_out = self._y_out
-        elif self.op == "Cosine":
+        elif self.op == 1:
+            # COSINE
             d_out = self._x_out
+        elif self.op == 2:
+            # ARCTAN
+            d_out = self._z_out
+        elif self.op == 3:
+            # SINH
+            d_out = self._y_out
+        elif self.op == 4:
+            # COSH
+            d_out = self._x_out
+        elif self.op == 5:
+            # ARCTANH
+            d_out = self._z_out
+        elif self.op == 6:
+            # EXPONENTIAL
+            d_out = self._x_out
+        elif self.op == 7:
+            # LOG
+            d_out = np.int32(self._x_out << 1)
+        else:
+            raise ValueError(f"Unidentified operation in postprocessor: {self.op}")
 
         self.d_out = d_out
 
 
     def run(self):
-        self.preprocess()
+        if self.preproc_class == "TrigFunc":
+            self.trigfunc_preprocess()
+        else:
+            raise ValueError(f"Unidentified preprocessor class: {self.preproc_class}")
+
         # Calculate number of repeats
         # Can usually be 2 or 3 depending whether there are less or
         # more than 40 iterations
@@ -194,4 +272,8 @@ class model_3():
         self._x_out = x_vec
         self._y_out = y_vec
         self._z_out = z_vec
-        self.postprocess()
+
+        if self.postproc_class == "TrigFunc":
+            self.trigfunc_postprocess()
+        else:
+            raise ValueError(f"Unidentified postprocessor class: {self.postproc_class}")
