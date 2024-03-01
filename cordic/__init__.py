@@ -178,15 +178,30 @@ class cordic(rtl, spice, thesdk):
 
     def convert_inputs(self):
         # TODO: restructure and replace with inlist
+        new_arr = np.empty(len(self.IOS.Members["io_in_bits_rs1"].Data), dtype="int32")
         for i in range(0, len(self.IOS.Members["io_in_bits_rs1"].Data)):
-            self.IOS.Members["io_in_bits_rs1"].Data[i] = \
-                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs1"].Data[i][0], self.mb, self.fb, self.repr).int_val()
+            len32 = methods.to_fixed_point(self.IOS.Members["io_in_bits_rs1"].Data[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
+            len32_bin = np.binary_repr(len32, width=32)
+            wanted_bits = len32_bin[0:self.mb+self.fb]
+            new_arr[i] = \
+                np.int32(int(wanted_bits, 2))
+        self.IOS.Members["io_in_bits_rs1"].Data = new_arr.reshape(-1, 1)
+        new_arr = np.empty(len(self.IOS.Members["io_in_bits_rs2"].Data), dtype="int32")
         for i in range(0, len(self.IOS.Members["io_in_bits_rs2"].Data)):
-            self.IOS.Members["io_in_bits_rs2"].Data[i] = \
-                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs2"].Data[i][0], self.mb, self.fb, self.repr).int_val()
+            len32 = methods.to_fixed_point(self.IOS.Members["io_in_bits_rs2"].Data[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
+            len32_bin = np.binary_repr(len32, width=32)
+            wanted_bits = len32_bin[0:self.mb+self.fb]
+            new_arr[i] = \
+                np.int32(int(wanted_bits, 2))
+        self.IOS.Members["io_in_bits_rs2"].Data = new_arr.reshape(-1, 1)
+        new_arr = np.empty(len(self.IOS.Members["io_in_bits_rs3"].Data), dtype="int32")
         for i in range(0, len(self.IOS.Members["io_in_bits_rs3"].Data)):
-            self.IOS.Members["io_in_bits_rs3"].Data[i] = \
-                methods.to_fixed_point(self.IOS.Members["io_in_bits_rs3"].Data[i][0], self.mb, self.fb, self.repr).int_val()
+            len32 = methods.to_fixed_point(self.IOS.Members["io_in_bits_rs3"].Data[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
+            len32_bin = np.binary_repr(len32, width=32)
+            wanted_bits = len32_bin[0:self.mb+self.fb]
+            new_arr[i] = \
+                np.int32(int(wanted_bits, 2))
+        self.IOS.Members["io_in_bits_rs3"].Data = new_arr.reshape(-1, 1)
         for i in range(0, len(self.IOS.Members["io_in_bits_control"].Data)):
             self.IOS.Members["io_in_bits_control"].Data[i] = \
                 self.control_string_to_int(self.IOS.Members["io_in_bits_control"].Data[i][0])
@@ -202,8 +217,12 @@ class cordic(rtl, spice, thesdk):
         for ios in converted:
             new_arr = np.empty(len(ios.Data), dtype='float32')
             for i in range(0, len(ios.Data)):
-                new_arr[i] = methods.to_double_single(BitVector(intVal=ios.Data[i][0], size=self.mb+self.fb), self.mb, self.fb, self.repr)
+                # Shift to 32 bit
+                new_arr[i] = methods.to_double_single(
+                    np.int32(ios.Data[i][0] << (32 - self.mb - self.fb)), 
+                    self.mb, self.fb, self.repr)
             ios.Data = new_arr.reshape(-1, 1)
+        import pdb; pdb.set_trace()
 
 
     def run(self, *arg):
@@ -307,7 +326,7 @@ class cordic(rtl, spice, thesdk):
 
             # Read iofiles into Python datatype
             for i, iofile in enumerate(out_iofileinsts):
-                iofile.read(dtype="int")
+                iofile.read(dtype="int32")
                 self.IOS.Members[out_ionames[i]].Data = iofile.Data
             self.convert_outputs()
 
@@ -315,7 +334,6 @@ if __name__ == "__main__":
     """Quick and dirty self test"""
     import numpy as np
     import matplotlib.pyplot as plt
-    import cProfile
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument(
