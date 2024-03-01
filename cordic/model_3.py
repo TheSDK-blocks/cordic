@@ -142,6 +142,27 @@ class model_3():
         else:
             self._mode = cordic_types.cordic_mode.VECTORING
 
+    def upconvert_preprocess(self):
+        x = self.rs1_in
+        y = self.rs2_in
+        z = self.rs3_in
+        self._mode = cordic_types.cordic_mode.ROTATION
+        self._type = cordic_types.rotation_type.CIRCULAR
+        pi_over_2 = np.int32(methods.to_fixed_point(np.pi/2, self.mb, self.fb, self.repr, ret_type="numpy"))
+        # Apply initial rotation of 90 degrees if needed
+        # This is because CORDIC cannot rotate more than around 100 degrees
+        if self.rs3_in > pi_over_2:
+            z = self.rs3_in - pi_over_2
+            x = -self.rs2_in
+            y = self.rs1_in
+        elif z < -pi_over_2:
+            z = z + pi_over_2
+            x = self.rs2_in
+            y = -self.rs1_in
+        self._x_in = np.int32(x)
+        self._y_in = np.int32(y)
+        self._z_in = np.int32(z)
+
     
     def trigfunc_postprocess(self):
         self.rs1_out = self._x_out
@@ -196,6 +217,8 @@ class model_3():
             self.trigfunc_preprocess()
         elif self.preproc_class == "Basic":
             self.basic_preprocess()
+        elif self.preproc_class == "UpConvert":
+            self.upconvert_preprocess()
         else:
             raise ValueError(f"Unidentified preprocessor class: {self.preproc_class}")
 
@@ -304,6 +327,8 @@ class model_3():
         if self.postproc_class == "TrigFunc":
             self.trigfunc_postprocess()
         elif self.postproc_class == "Basic":
+            self.basic_postprocess()
+        elif self.postproc_class == "UpConvert":
             self.basic_postprocess()
         else:
             raise ValueError(f"Unidentified postprocessor class: {self.postproc_class}")
