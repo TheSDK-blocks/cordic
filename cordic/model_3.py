@@ -55,7 +55,7 @@ class model_3():
         self.fb = frac_bits
         self.iters = iterations
         self.repr = repr
-        self.op = "Sine"
+        self.op = 0
         self._type = None
         self._mode = None
         self.preproc_class = preprocessor_class
@@ -129,6 +129,19 @@ class model_3():
         else:
             raise ValueError(f"Unidentified operation in preprocessor: {self.op}")
 
+    def basic_preprocess(self):
+        self._x_in = self.rs1_in
+        self._y_in = self.rs2_in
+        self._z_in = self.rs3_in
+        if self.op & 1:
+            self._type = cordic_types.rotation_type.CIRCULAR
+        else:
+            self._type = cordic_types.rotation_type.HYPERBOLIC
+        if self.op & (1 << 1):
+            self._mode = cordic_types.cordic_mode.ROTATION
+        else:
+            self._mode = cordic_types.cordic_mode.VECTORING
+
     
     def trigfunc_postprocess(self):
         self.rs1_out = self._x_out
@@ -163,6 +176,13 @@ class model_3():
 
         self.d_out = d_out
 
+    def basic_postprocess(self):
+        self.rs1_out = self._x_out
+        self.rs2_out = self._y_out
+        self.rs3_out = self._z_out
+        self.d_out   = np.int32(0)
+
+
     def truncate(self):
         """Truncate output to better mimick a CORDIC with given resolution"""
         self.rs1_out = np.int32(self.rs1_out & (((1 << (self.mb + self.fb)) - 1)) << (32 - (self.mb + self.fb)))
@@ -174,6 +194,8 @@ class model_3():
     def run(self):
         if self.preproc_class == "TrigFunc":
             self.trigfunc_preprocess()
+        elif self.preproc_class == "Basic":
+            self.basic_preprocess()
         else:
             raise ValueError(f"Unidentified preprocessor class: {self.preproc_class}")
 
@@ -281,6 +303,8 @@ class model_3():
 
         if self.postproc_class == "TrigFunc":
             self.trigfunc_postprocess()
+        elif self.postproc_class == "Basic":
+            self.basic_postprocess()
         else:
             raise ValueError(f"Unidentified postprocessor class: {self.postproc_class}")
         
