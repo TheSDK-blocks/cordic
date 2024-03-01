@@ -121,7 +121,6 @@ class model_3():
             # LOG
             self._mode = cordic_types.cordic_mode.VECTORING
             self._type = cordic_types.rotation_type.HYPERBOLIC
-            self._x_in 
             one = methods.to_fixed_point(1.0, self.mb, self.fb,
                                          self.repr, ret_type="numpy")
             self._x_in = self.d_in + one
@@ -158,7 +157,7 @@ class model_3():
             d_out = self._x_out
         elif self.op == 7:
             # LOG
-            d_out = np.int32(self._x_out << 1)
+            d_out = np.int32(self._z_out << 1)
         else:
             raise ValueError(f"Unidentified operation in postprocessor: {self.op}")
 
@@ -243,7 +242,7 @@ class model_3():
             if self._mode == cordic_types.cordic_mode.ROTATION:
                 sigma = z_vec > 0
             elif self._mode == cordic_types.cordic_mode.VECTORING:
-                sigma = z_vec < 0
+                sigma = y_vec < 0
 
             # m = True means m = 1
             # m = False means m = -1
