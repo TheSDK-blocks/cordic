@@ -22,7 +22,7 @@ import yaml
 
 # from model_1 import model_1
 from cordic.model_3 import model_3
-from BitVector import BitVector
+#from BitVector import BitVector
 import cordic.cordic_common.methods as methods
 import cordic.cordic_common.cordic_types as cordic_types
 
@@ -114,7 +114,6 @@ class cordic(rtl, spice, thesdk):
                       self.postprocessor_class,
                       self.use_phase_accum,
                       self.phase_accum_width)
-
         for i in range(0, d_in.size):
             dut.d_in   = methods.to_fixed_point(d_in[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
             dut.rs1_in = methods.to_fixed_point(rs1[i][0], self.mb, self.fb, self.repr, ret_type="numpy")
@@ -222,7 +221,6 @@ class cordic(rtl, spice, thesdk):
                     np.int32(ios.Data[i][0] << (32 - self.mb - self.fb)), 
                     self.mb, self.fb, self.repr)
             ios.Data = new_arr.reshape(-1, 1)
-        import pdb; pdb.set_trace()
 
 
     def run(self, *arg):

@@ -41,26 +41,26 @@ def to_fixed_point(
     max_val = 2**mantissa_bits
     if isinstance(value, float) or isinstance(value, float32):
         if repr == "fixed-point":
-            (frac, integer_signed) = modf(value)
-            sign = value < 0
-            integer = int(abs(integer_signed))
-            frac_bits = floor((1 << float_bits) * abs(frac))
-            bits = (integer << float_bits) | frac_bits
-            if sign:
-                bits *= -1
-            bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
             if ret_type == "BitVector":
+                (frac, integer_signed) = modf(value)
+                sign = value < 0
+                integer = int(abs(integer_signed))
+                frac_bits = floor((1 << float_bits) * abs(frac))
+                bits = (integer << float_bits) | frac_bits
+                if sign:
+                    bits *= -1
+                bit_str = Bits(int=bits, length=(mantissa_bits + float_bits))
                 # requires bitstring 4.1.0
                 bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
                 return bit_vec
             elif ret_type == "numpy":
                 return int32((value / max_val) * 2**32)
         elif repr == "pi":
-            bits = int(((2 ** (mantissa_bits + float_bits - 1)) * value) / pi)
-            bit_str = Bits(int=bits,
-                           length=(mantissa_bits + float_bits))
-            bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
             if ret_type == "BitVector":
+                bits = int(((2 ** (mantissa_bits + float_bits - 1)) * value) / pi)
+                bit_str = Bits(int=bits,
+                            length=(mantissa_bits + float_bits))
+                bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
                 return bit_vec
             elif ret_type == "numpy":
                 return int32(value / (2 * pi) * 2**32)
@@ -68,10 +68,10 @@ def to_fixed_point(
             raise ValueError("Undefined repr: " + repr)
 
     elif isinstance(value, int32):
-        bit_str = Bits(int=value, length=(mantissa_bits + float_bits))
         # requires bitstring 4.1.0
-        bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
         if ret_type == "BitVector":
+            bit_str = Bits(int=value, length=(mantissa_bits + float_bits))
+            bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
             return bit_vec
         elif ret_type == "numpy":
             return value
@@ -116,8 +116,8 @@ def to_double_single(bit_vector, mantissa_bits: int, float_bits: int, repr: str)
             intval = bt_vec.int_val()
             return sign * ((intval / 2**(mantissa_bits + float_bits - 1)) * pi)
     elif isinstance(bit_vector, int32):
-        max_val = 2**mantissa_bits
         if repr == "fixed-point":
+            max_val = 2**mantissa_bits
             return (bit_vector / 2**32) * max_val
         elif repr == "pi":
             return  (bit_vector / 2**32) * 2 * pi
