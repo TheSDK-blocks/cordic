@@ -61,10 +61,15 @@ class cordic(rtl, spice, thesdk):
         self.IOS.Members["io_out_bits_cordic_z"] = IO()
         self.IOS.Members["io_out_valid"] = IO()
 
+        self.IOS.Members['control_write']= IO() 
         self.IOS.Members["clock"] = IO()
         self.IOS.Members["reset"] = IO()
 
         self.model = model
+
+        self.Rs = 100e6
+        self.lang = 'sv'
+        self.vlogext = '.v'
 
         with open(config_file, 'r') as cfile:
             cordic_config = yaml.safe_load(cfile)
@@ -258,105 +263,142 @@ class cordic(rtl, spice, thesdk):
             self.main()
         else:
             self.convert_inputs()
-            sim = os.getenv("SIM", "icarus") # use verilator for faster simulation (version > 5)
-            clock_name = "clock"
-            reset_name = "reset"
-            in_ios = {
-                "rs1": "io_in_bits_rs1",
-                "rs2": "io_in_bits_rs2",
-                "rs3": "io_in_bits_rs3",
-                "control": "io_in_bits_control",
-            }
-            out_ios = {
-                "x": "io_out_bits_cordic_x",
-                "y": "io_out_bits_cordic_y",
-                "z": "io_out_bits_cordic_z",
-                "dOut": "io_out_bits_dOut",
-            }
-            in_iofiles = []
-            in_ionames = []
-            out_iofiles = []
-            out_ionames = []
-            out_iofileinsts = []
-            for key, value in in_ios.items():
-                file = rtl_iofile(
-                    self,
-                    name=key,
-                    dir="in",
-                    iotype="sample",
-                    ionames=[value],
-                    datatype="sint",
-                )
-                file.file = self.simpath + "/" + file.name + ".txt"
-                data = self.IOS.Members[value].Data
-                if data is None:
-                    data = np.empty((1, 1))
-                file.write(data=data)
-                in_iofiles.append(file.file)
-                in_ionames.append(value)
-            for key, value in out_ios.items():
-                file = rtl_iofile(
-                    self,
-                    name=key,
-                    dir="out",
-                    iotype="sample",
-                    ionames=[value],
-                    datatype="sint",
-                )
-                file.file = self.simpath + "/" + file.name + ".txt"
-                out_iofiles.append(file.file)
-                out_ionames.append(value)
-                out_iofileinsts.append(file)
+            _=rtl_iofile(self, name='io_in_valid', dir='in', iotype='sample', datatype='int', ionames=['io_in_valid'])
+            _=rtl_iofile(self, name='io_in_bits_rs1', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_rs1'])
+            _=rtl_iofile(self, name='io_in_bits_rs2', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_rs2'])
+            _=rtl_iofile(self, name='io_in_bits_rs3', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_rs3'])
+            _=rtl_iofile(self, name='io_in_bits_control', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_control'])
 
-            runner = get_runner(sim)
-            if sim == "verilator":
-                build_args = ["--trace"]
-            else:
-                build_args = []
+            _=rtl_iofile(self, name='io_out_bits_dOut', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_dOut'])
+            _=rtl_iofile(self, name='io_out_bits_cordic_x', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_x'])
+            _=rtl_iofile(self, name='io_out_bits_cordic_y', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_y'])
+            _=rtl_iofile(self, name='io_out_bits_cordic_z', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_z'])
+            _=rtl_iofile(self, name='io_out_valid', dir='out', iotype='sample', datatype='int', ionames=['io_out_valid'])
 
-            runner.build(
-                verilog_sources=[
-                    self.vlogsrcpath + "/CordicTop.v",
-                    self.vlogsrcpath + "/cocotb_iverilog_dump.v",
-                ],
-                hdl_toplevel="CordicTop",
-                always=True,
-                build_args=build_args
-            )
-            runner.test(
-                hdl_toplevel="CordicTop",
-                test_module="test_cordic",
-                test_dir=os.path.join(thesdk.HOME, "Entities/cordic/cordic"),
-                plusargs=[
-                    f"+in_iofiles={','.join(in_iofiles)}",
-                    f"+in_ionames={','.join(in_ionames)}",
-                    f"+out_iofiles={','.join(out_iofiles)}",
-                    f"+out_ionames={','.join(out_ionames)}",
-                    f"+clock={clock_name}",
-                    f"+reset={reset_name}",
-                ],
-                waves=self.waves,
-            )
+            self.rtlparameters=dict([ ('g_Rs', (float, self.Rs)), ]) #Freq for sim clock
 
-            # Read iofiles into Python datatype
-            for i, iofile in enumerate(out_iofileinsts):
-                iofile.read(dtype="int32")
-                self.IOS.Members[out_ionames[i]].Data = iofile.Data
+            self.run_rtl()
+            import pdb; pdb.set_trace()
             self.convert_outputs()
+
+    def define_io_conditions(self):
+        self.iofile_bundle.Members["io_in_valid"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_in_bits_rs1"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_in_bits_rs2"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_in_bits_rs3"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_in_bits_control"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_bits_dOut"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_bits_cordic_x"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_bits_cordic_y"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_bits_cordic_z"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_valid"].rtl_io_condition='initdone'
+
+    def run_cocotb(self):
+        self.convert_inputs()
+        sim = os.getenv("SIM", "icarus") # use verilator for faster simulation (version > 5)
+        clock_name = "clock"
+        reset_name = "reset"
+        in_ios = {
+            "rs1": "io_in_bits_rs1",
+            "rs2": "io_in_bits_rs2",
+            "rs3": "io_in_bits_rs3",
+            "control": "io_in_bits_control",
+        }
+        out_ios = {
+            "x": "io_out_bits_cordic_x",
+            "y": "io_out_bits_cordic_y",
+            "z": "io_out_bits_cordic_z",
+            "io_out_bits_dOut": "io_out_bits_dOut",
+        }
+        in_iofiles = []
+        in_ionames = []
+        out_iofiles = []
+        out_ionames = []
+        out_iofileinsts = []
+        for key, value in in_ios.items():
+            file = rtl_iofile(
+                self,
+                name=key,
+                dir="in",
+                iotype="sample",
+                ionames=[value],
+                datatype="sint",
+            )
+            file.file = self.simpath + "/" + file.name + ".txt"
+            data = self.IOS.Members[value].Data
+            if data is None:
+                data = np.empty((1, 1))
+            file.write(data=data)
+            in_iofiles.append(file.file)
+            in_ionames.append(value)
+        for key, value in out_ios.items():
+            file = rtl_iofile(
+                self,
+                name=key,
+                dir="out",
+                iotype="sample",
+                ionames=[value],
+                datatype="sint",
+            )
+            file.file = self.simpath + "/" + file.name + ".txt"
+            out_iofiles.append(file.file)
+            out_ionames.append(value)
+            out_iofileinsts.append(file)
+
+        runner = get_runner(sim)
+        if sim == "verilator":
+            build_args = ["--trace"]
+        else:
+            build_args = []
+
+        runner.build(
+            verilog_sources=[
+                self.vlogsrcpath + "/cordic.v",
+                self.vlogsrcpath + "/cocotb_iverilog_dump.v",
+            ],
+            hdl_toplevel="cordic",
+            always=True,
+            build_args=build_args
+        )
+        runner.test(
+            hdl_toplevel="cordic",
+            test_module="test_cordic",
+            test_dir=os.path.join(thesdk.HOME, "Entities/cordic/cordic"),
+            plusargs=[
+                f"+in_iofiles={','.join(in_iofiles)}",
+                f"+in_ionames={','.join(in_ionames)}",
+                f"+out_iofiles={','.join(out_iofiles)}",
+                f"+out_ionames={','.join(out_ionames)}",
+                f"+clock={clock_name}",
+                f"+reset={reset_name}",
+            ],
+            waves=self.waves,
+        )
+
+        # Read iofiles into Python datatype
+        for i, iofile in enumerate(out_iofileinsts):
+            iofile.read(dtype="int32")
+            self.IOS.Members[out_ionames[i]].Data = iofile.Data
+        self.convert_outputs()
 
 if __name__ == "__main__":
     """Quick and dirty self test"""
     import numpy as np
     import matplotlib.pyplot as plt
     import argparse
+    from cordic.controller import controller
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config_file",
         type=str
     )
     args = parser.parse_args()
-    dut = cordic(config_file=args.config_file)
-    dut.model = "py"
+    dut = cordic(config_file=args.config_file, model="sv")
+    cordic_controller = controller()
+    cordic_controller.Rs = dut.Rs
+    cordic_controller.reset()
+    cordic_controller.step_time()
+    cordic_controller.start_datafeed()
     dut.repr = "fixed-point"
     function = "Sine"
     test_data = \
@@ -370,6 +412,8 @@ if __name__ == "__main__":
     dut.IOS.Members["io_in_bits_control"].Data = np.full(
         dut.IOS.Members["io_in_bits_rs1"].Data.size, dut.control_string_to_int(function)
     ).reshape(-1, 1)
+    dut.IOS.Members["io_in_valid"].Data = np.ones(size, dtype=np.int32).reshape(-1, 1)
+    dut.IOS.Members["control_write"] = cordic_controller.IOS.Members["control_write"]
     dut.run()
     output = np.array(
         [

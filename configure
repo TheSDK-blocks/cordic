@@ -23,7 +23,7 @@ cat << EOF > ${THISDIR}/Makefile
 
 all: chisel sim
 
-config ?= basic
+config ?= trig
 config_file ?= ${THISDIR}/chisel/configs/\$(config).yml
 
 MAINPARAMS_CHISEL = config_file=\$(config_file)
@@ -51,7 +51,7 @@ clean:
 	cd ${THISDIR}/chisel && \\
 	make clean && \\
 	rm -rf ${THISDIR}/simulations/* 
-	rm -rf sv/CordicTop*
+	rm -rf sv/cordic*
    
 EOF
 exit 0

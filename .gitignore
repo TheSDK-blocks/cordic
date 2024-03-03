@@ -20,5 +20,6 @@ modelsim.ini
 **/sim_build
 *.anno.json
 sv/Cordic*
+sv/cordic*
 results.xml
 *.vcd
