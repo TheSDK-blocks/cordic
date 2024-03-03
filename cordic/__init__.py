@@ -193,7 +193,7 @@ class cordic(rtl, spice, thesdk):
             len32_bin = np.binary_repr(len32, width=32)
             wanted_bits = len32_bin[0:self.mb+self.fb]
             new_arr[i] = \
-                np.int32(int(wanted_bits, 2))
+                np.int32(len32)
         self.IOS.Members["io_in_bits_rs1"].Data = new_arr.reshape(-1, 1)
         new_arr = np.empty(len(self.IOS.Members["io_in_bits_rs2"].Data), dtype="int32")
         for i in range(0, len(self.IOS.Members["io_in_bits_rs2"].Data)):
@@ -201,7 +201,7 @@ class cordic(rtl, spice, thesdk):
             len32_bin = np.binary_repr(len32, width=32)
             wanted_bits = len32_bin[0:self.mb+self.fb]
             new_arr[i] = \
-                np.int32(int(wanted_bits, 2))
+                np.int32(len32)
         self.IOS.Members["io_in_bits_rs2"].Data = new_arr.reshape(-1, 1)
         new_arr = np.empty(len(self.IOS.Members["io_in_bits_rs3"].Data), dtype="int32")
         for i in range(0, len(self.IOS.Members["io_in_bits_rs3"].Data)):
@@ -209,7 +209,7 @@ class cordic(rtl, spice, thesdk):
             len32_bin = np.binary_repr(len32, width=32)
             wanted_bits = len32_bin[0:self.mb+self.fb]
             new_arr[i] = \
-                np.int32(int(wanted_bits, 2))
+                np.int32(len32)
         self.IOS.Members["io_in_bits_rs3"].Data = new_arr.reshape(-1, 1)
         for i in range(0, len(self.IOS.Members["io_in_bits_control"].Data)):
             self.IOS.Members["io_in_bits_control"].Data[i] = \
@@ -227,8 +227,9 @@ class cordic(rtl, spice, thesdk):
             new_arr = np.empty(len(ios.Data), dtype='float32')
             for i in range(0, len(ios.Data)):
                 # Shift to 32 bit
+                data = ios.Data.astype('int32')[i][0]
                 new_arr[i] = methods.to_double_single(
-                    np.int32(ios.Data[i][0] << (32 - self.mb - self.fb)), 
+                    data, 
                     self.mb, self.fb, self.repr)
             ios.Data = new_arr.reshape(-1, 1)
 
@@ -263,13 +264,13 @@ class cordic(rtl, spice, thesdk):
             self.main()
         else:
             self.convert_inputs()
-            _=rtl_iofile(self, name='io_in_valid', dir='in', iotype='sample', datatype='int', ionames=['io_in_valid'])
-            _=rtl_iofile(self, name='io_in_bits_rs1', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_rs1'])
-            _=rtl_iofile(self, name='io_in_bits_rs2', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_rs2'])
-            _=rtl_iofile(self, name='io_in_bits_rs3', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_rs3'])
+            _=rtl_iofile(self, name='io_in_valid', dir='in', iotype='sample', datatype='sint', ionames=['io_in_valid'])
+            _=rtl_iofile(self, name='io_in_bits_rs1', dir='in', iotype='sample', datatype='sint', ionames=['io_in_bits_rs1'])
+            _=rtl_iofile(self, name='io_in_bits_rs2', dir='in', iotype='sample', datatype='sint', ionames=['io_in_bits_rs2'])
+            _=rtl_iofile(self, name='io_in_bits_rs3', dir='in', iotype='sample', datatype='sint', ionames=['io_in_bits_rs3'])
             _=rtl_iofile(self, name='io_in_bits_control', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_control'])
 
-            _=rtl_iofile(self, name='io_out_bits_dOut', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_dOut'])
+            _=rtl_iofile(self, name='io_out_bits_dOut', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_dOut'])
             _=rtl_iofile(self, name='io_out_bits_cordic_x', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_x'])
             _=rtl_iofile(self, name='io_out_bits_cordic_y', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_y'])
             _=rtl_iofile(self, name='io_out_bits_cordic_z', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_z'])
@@ -278,7 +279,6 @@ class cordic(rtl, spice, thesdk):
             self.rtlparameters=dict([ ('g_Rs', (float, self.Rs)), ]) #Freq for sim clock
 
             self.run_rtl()
-            import pdb; pdb.set_trace()
             self.convert_outputs()
 
     def define_io_conditions(self):
@@ -287,10 +287,10 @@ class cordic(rtl, spice, thesdk):
         self.iofile_bundle.Members["io_in_bits_rs2"].rtl_io_condition='initdone'
         self.iofile_bundle.Members["io_in_bits_rs3"].rtl_io_condition='initdone'
         self.iofile_bundle.Members["io_in_bits_control"].rtl_io_condition='initdone'
-        self.iofile_bundle.Members["io_out_bits_dOut"].rtl_io_condition='initdone'
-        self.iofile_bundle.Members["io_out_bits_cordic_x"].rtl_io_condition='initdone'
-        self.iofile_bundle.Members["io_out_bits_cordic_y"].rtl_io_condition='initdone'
-        self.iofile_bundle.Members["io_out_bits_cordic_z"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_bits_dOut"].rtl_io_condition='io_out_valid'
+        self.iofile_bundle.Members["io_out_bits_cordic_x"].rtl_io_condition='io_out_valid'
+        self.iofile_bundle.Members["io_out_bits_cordic_y"].rtl_io_condition='io_out_valid'
+        self.iofile_bundle.Members["io_out_bits_cordic_z"].rtl_io_condition='io_out_valid'
         self.iofile_bundle.Members["io_out_valid"].rtl_io_condition='initdone'
 
     def run_cocotb(self):
@@ -394,16 +394,23 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     dut = cordic(config_file=args.config_file, model="sv")
-    cordic_controller = controller()
-    cordic_controller.Rs = dut.Rs
-    cordic_controller.reset()
-    cordic_controller.step_time()
-    cordic_controller.start_datafeed()
+    dut.preserve_iofiles = True
+    dut.preserve_rtlfiles = True
+    dut.interactive_rtl = False
     dut.repr = "fixed-point"
     function = "Sine"
     test_data = \
         np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
     size = np.size(test_data)
+
+    cordic_controller = controller()
+    cordic_controller.Rs = dut.Rs
+    cordic_controller.reset()
+    cordic_controller.step_time()
+    cordic_controller.start_datafeed()
+    cordic_controller.step_time(step=20000000)
+    cordic_controller.set_simdone()
+
     if dut.model == "sv":
         dut.print_log(type="I", msg="Note: this test requires building CORDIC with trig config.")
     dut.IOS.Members["io_in_bits_rs1"].Data = np.copy(test_data)
@@ -412,7 +419,8 @@ if __name__ == "__main__":
     dut.IOS.Members["io_in_bits_control"].Data = np.full(
         dut.IOS.Members["io_in_bits_rs1"].Data.size, dut.control_string_to_int(function)
     ).reshape(-1, 1)
-    dut.IOS.Members["io_in_valid"].Data = np.ones(size, dtype=np.int32).reshape(-1, 1)
+    dut.IOS.Members["io_in_valid"].Data = np.ones(size+1, dtype=np.int32).reshape(-1, 1)
+    dut.IOS.Members["io_in_valid"].Data[-1] = 0
     dut.IOS.Members["control_write"] = cordic_controller.IOS.Members["control_write"]
     dut.run()
     output = np.array(

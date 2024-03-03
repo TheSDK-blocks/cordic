@@ -48,6 +48,7 @@ class controller(rtl):
         #These are signals not in dut
         self.newsigs_write=[
                  'initdone',
+                 'simdone',
                 ]
 
         # Selected signals controlled with this file with init values
@@ -55,6 +56,7 @@ class controller(rtl):
         self.signallist_write=[
             ('reset', 1),
             ('initdone',0),
+            ('simdone',0),
         ]
 
         #These are signals not in dut
@@ -122,4 +124,10 @@ class controller(rtl):
         f=self.iofile_bundle.Members['control_write']
         for name in [ 'initdone', ]:
             f.set_control_data(time=self.time,name=name,val=1)
+        self.step_time()
+
+    def set_simdone(self):
+        f=self.iofile_bundle.Members['control_write']
+        for name in ['simdone']:
+            f.set_control_data(time=self.time, name=name, val=1)
         self.step_time()
