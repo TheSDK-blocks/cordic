@@ -130,6 +130,7 @@ class cordic(rtl, spice, thesdk):
         self.IOS.Members["io_out_bits_cordic_x"].Data = rs1_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_y"].Data = rs2_out.reshape(-1, 1)
         self.IOS.Members["io_out_bits_cordic_z"].Data = rs3_out.reshape(-1, 1)
+        self.check_for_overflow()
 
 
     def control_string_to_int(self, string):
@@ -222,6 +223,17 @@ class cordic(rtl, spice, thesdk):
                     self.mb, self.fb, self.repr)
             ios.Data = new_arr.reshape(-1, 1)
 
+
+    def check_for_overflow(self):
+        max_val = 2**(self.mb + self.fb - 1) - 1
+        min_val = -2**(self.mb + self.fb - 1)
+        for val in [self.IOS.Members["io_out_bits_cordic_x"].Data,
+                    self.IOS.Members["io_out_bits_cordic_y"].Data,
+                    self.IOS.Members["io_out_bits_cordic_z"].Data,
+                    self.IOS.Members["io_out_bits_dOut"].Data,]:
+            for elem in val:
+                if (elem > max_val ) or (elem < min_val):
+                    self.print_log(type="W", msg=f"Overflow detected: {val}")
 
     def run(self, *arg):
         """The default name of the method to be executed. This means:
@@ -352,7 +364,7 @@ if __name__ == "__main__":
     dut.IOS.Members["io_in_bits_rs2"].Data = np.zeros(size, dtype=np.int32).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_rs3"].Data = np.zeros(size, dtype=np.int32).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_control"].Data = np.full(
-        dut.IOS.Members["io_in_bits_rs1"].Data.size, function
+        dut.IOS.Members["io_in_bits_rs1"].Data.size, dut.control_string_to_int(function)
     ).reshape(-1, 1)
     dut.run()
     output = np.array(
