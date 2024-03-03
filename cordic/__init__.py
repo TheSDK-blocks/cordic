@@ -37,12 +37,16 @@ class cordic(rtl, spice, thesdk):
 
         config_file : str
             Path to CORDIC config file
+        
+        model : str
+            model (py or sv)
 
     """
     def __init__(
         self,
         *arg,
-        config_file
+        config_file,
+        model
     ):
         self.print_log(type="I", msg="Initializing %s" % (__name__))
 
@@ -60,7 +64,7 @@ class cordic(rtl, spice, thesdk):
         self.IOS.Members["clock"] = IO()
         self.IOS.Members["reset"] = IO()
 
-        self.model = "py"  # Can be set externalouly, but is not propagated
+        self.model = model
 
         with open(config_file, 'r') as cfile:
             cordic_config = yaml.safe_load(cfile)
