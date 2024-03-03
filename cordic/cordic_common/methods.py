@@ -54,7 +54,7 @@ def to_fixed_point(
                 bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
                 return bit_vec
             elif ret_type == "numpy":
-                return int32((value / max_val) * 2**32)
+                return int32((value / max_val) * 2**(mantissa_bits + float_bits))
         elif repr == "pi":
             if ret_type == "BitVector":
                 bits = int(((2 ** (mantissa_bits + float_bits - 1)) * value) / pi)
@@ -63,7 +63,7 @@ def to_fixed_point(
                 bit_vec = BitVector(bitstring=bit_str.tobitarray().to01())
                 return bit_vec
             elif ret_type == "numpy":
-                return int32(value / (2 * pi) * 2**32)
+                return int32(value / (2 * pi) * 2**(mantissa_bits + float_bits))
         else:
             raise ValueError("Undefined repr: " + repr)
 
@@ -118,8 +118,8 @@ def to_double_single(bit_vector, mantissa_bits: int, float_bits: int, repr: str)
     elif isinstance(bit_vector, int32):
         if repr == "fixed-point":
             max_val = 2**mantissa_bits
-            return (bit_vector / 2**32) * max_val
+            return (bit_vector / 2**(mantissa_bits + float_bits)) * max_val
         elif repr == "pi":
-            return  (bit_vector / 2**32) * 2 * pi
+            return  (bit_vector / 2**(mantissa_bits + float_bits)) * 2 * pi
 
 
