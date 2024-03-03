@@ -203,15 +203,6 @@ class model_3():
         self.rs3_out = self._z_out
         self.d_out   = np.int32(0)
 
-
-    def truncate(self):
-        """Truncate output to better mimick a CORDIC with given resolution"""
-        self.rs1_out = np.int32(self.rs1_out & (((1 << (self.mb + self.fb)) - 1)) << (32 - (self.mb + self.fb)))
-        self.rs2_out = np.int32(self.rs2_out & (((1 << (self.mb + self.fb)) - 1)) << (32 - (self.mb + self.fb)))
-        self.rs3_out = np.int32(self.rs3_out & (((1 << (self.mb + self.fb)) - 1)) << (32 - (self.mb + self.fb)))
-        self.d_out   = np.int32(self.d_out   & (((1 << (self.mb + self.fb)) - 1)) << (32 - (self.mb + self.fb)))
-
-
     def run(self):
         if self.preproc_class == "TrigFunc":
             self.trigfunc_preprocess()
@@ -332,5 +323,3 @@ class model_3():
             self.basic_postprocess()
         else:
             raise ValueError(f"Unidentified postprocessor class: {self.postproc_class}")
-        
-        self.truncate()
