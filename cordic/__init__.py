@@ -224,10 +224,11 @@ class cordic(rtl, spice, thesdk):
             self.IOS.Members["io_out_bits_cordic_z"],
         ]
         for ios in converted:
-            new_arr = np.empty(len(ios.Data), dtype='float32')
+            new_arr = np.zeros(len(ios.Data), dtype='float32')
+            ios.Data = ios.Data.astype('int32')
             for i in range(0, len(ios.Data)):
                 # Shift to 32 bit
-                data = ios.Data.astype('int32')[i][0]
+                data = ios.Data[i][0]
                 new_arr[i] = methods.to_double_single(
                     data, 
                     self.mb, self.fb, self.repr)
@@ -394,34 +395,39 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     dut = cordic(config_file=args.config_file, model="sv")
-    dut.preserve_iofiles = True
-    dut.preserve_rtlfiles = True
+    dut.preserve_iofiles = False
+    dut.preserve_rtlfiles = False
     dut.interactive_rtl = False
     dut.repr = "fixed-point"
     function = "Sine"
+
     test_data = \
         np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
-    size = np.size(test_data)
-
-    cordic_controller = controller()
-    cordic_controller.Rs = dut.Rs
-    cordic_controller.reset()
-    cordic_controller.step_time()
-    cordic_controller.start_datafeed()
-    cordic_controller.step_time(step=20000000)
-    cordic_controller.set_simdone()
 
     if dut.model == "sv":
-        dut.print_log(type="I", msg="Note: this test requires building CORDIC with trig config.")
-    dut.IOS.Members["io_in_bits_rs1"].Data = np.copy(test_data)
+        cordic_controller = controller()
+        cordic_controller.Rs = dut.Rs
+        cordic_controller.reset()
+        cordic_controller.step_time()
+        cordic_controller.start_datafeed()
+        n_pad_zeros = dut.iters + 7
+        # Add some zero padding to allow all data to propagate through the pipeline
+        test_data_padded = np.append(test_data, np.zeros(n_pad_zeros)).reshape(-1, 1)
+        size = np.size(test_data_padded)
+        dut.IOS.Members["io_in_valid"].Data = np.ones(size, dtype=np.int32).reshape(-1, 1)
+        # Set valid to 0 for zero padding samples
+        dut.IOS.Members["io_in_valid"].Data[-n_pad_zeros:] = 0
+        dut.IOS.Members["control_write"] = cordic_controller.IOS.Members["control_write"]
+    else:
+        test_data_padded = test_data
+        size = np.size(test_data_padded)
+
+    dut.IOS.Members["io_in_bits_rs1"].Data = np.copy(test_data_padded)
     dut.IOS.Members["io_in_bits_rs2"].Data = np.zeros(size, dtype=np.int32).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_rs3"].Data = np.zeros(size, dtype=np.int32).reshape(-1, 1)
     dut.IOS.Members["io_in_bits_control"].Data = np.full(
-        dut.IOS.Members["io_in_bits_rs1"].Data.size, dut.control_string_to_int(function)
+        size, dut.control_string_to_int(function)
     ).reshape(-1, 1)
-    dut.IOS.Members["io_in_valid"].Data = np.ones(size+1, dtype=np.int32).reshape(-1, 1)
-    dut.IOS.Members["io_in_valid"].Data[-1] = 0
-    dut.IOS.Members["control_write"] = cordic_controller.IOS.Members["control_write"]
     dut.run()
     output = np.array(
         [
