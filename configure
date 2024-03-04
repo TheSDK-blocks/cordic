@@ -23,7 +23,7 @@ cat << EOF > ${THISDIR}/Makefile
 
 all: chisel sim
 
-config ?= basic
+config ?= trig
 config_file ?= ${THISDIR}/chisel/configs/\$(config).yml
 
 MAINPARAMS_CHISEL = config_file=\$(config_file)
@@ -33,7 +33,7 @@ chisel/Makefile:
 
 sim:
 	cd ${THISDIR}/${MODULE} && \\
-	${PYL} __init__.py || (echo "make sim failed $$?"; exit 1)
+	${PYL} __init__.py --config_file \$(config_file) || (echo "make sim failed $$?"; exit 1)
 
 show:
 	cd ${THISDIR}/${MODULE} && \\
@@ -51,7 +51,7 @@ clean:
 	cd ${THISDIR}/chisel && \\
 	make clean && \\
 	rm -rf ${THISDIR}/simulations/* 
-	rm -rf sv/CordicTop*
+	rm -rf sv/cordic*
    
 EOF
 exit 0
