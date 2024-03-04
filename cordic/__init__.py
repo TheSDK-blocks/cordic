@@ -70,6 +70,7 @@ class cordic(rtl, spice, thesdk):
         self.Rs = 100e6
         self.lang = 'sv'
         self.vlogext = '.v'
+        self.convert_output = True
 
         with open(config_file, 'r') as cfile:
             cordic_config = yaml.safe_load(cfile)
@@ -215,7 +216,7 @@ class cordic(rtl, spice, thesdk):
             self.IOS.Members["io_in_bits_control"].Data[i] = \
                 self.control_string_to_int(self.IOS.Members["io_in_bits_control"].Data[i][0])
 
-    def convert_outputs(self):
+    def convert_outputs(self, to_double: bool):
         # TODO: replace with outlist
         converted = [
             self.IOS.Members["io_out_bits_dOut"],
@@ -229,9 +230,12 @@ class cordic(rtl, spice, thesdk):
             for i in range(0, len(ios.Data)):
                 # Shift to 32 bit
                 data = ios.Data[i][0]
-                new_arr[i] = methods.to_double_single(
-                    data, 
-                    self.mb, self.fb, self.repr)
+                if to_double:
+                    new_arr[i] = methods.to_double_single(
+                        data, 
+                        self.mb, self.fb, self.repr)
+                else:
+                    new_arr[i] = np.int32(data)
             ios.Data = new_arr.reshape(-1, 1)
 
 
@@ -280,7 +284,7 @@ class cordic(rtl, spice, thesdk):
             self.rtlparameters=dict([ ('g_Rs', (float, self.Rs)), ]) #Freq for sim clock
 
             self.run_rtl()
-            self.convert_outputs()
+            self.convert_outputs(self.convert_output)
 
     def define_io_conditions(self):
         self.iofile_bundle.Members["io_in_valid"].rtl_io_condition='initdone'
@@ -295,6 +299,9 @@ class cordic(rtl, spice, thesdk):
         self.iofile_bundle.Members["io_out_valid"].rtl_io_condition='initdone'
 
     def run_cocotb(self):
+        """This method holds an experimental cocotb flow.
+        It's not used in any of the flow now.
+        """
         self.convert_inputs()
         sim = os.getenv("SIM", "icarus") # use verilator for faster simulation (version > 5)
         clock_name = "clock"
@@ -394,24 +401,32 @@ if __name__ == "__main__":
         type=str
     )
     args = parser.parse_args()
+    # CORDIC DUT
     dut = cordic(config_file=args.config_file, model="sv")
+    # Store iofiles
     dut.preserve_iofiles = False
+    # Store generated rtl files
     dut.preserve_rtlfiles = False
+    # Open questasim
     dut.interactive_rtl = False
+    # Number representation
     dut.repr = "fixed-point"
+    # Trigonometric function
     function = "Sine"
 
+    # Input data
     test_data = \
         np.arange(-np.pi, np.pi, 0.01, dtype=float).reshape(-1, 1)
 
     if dut.model == "sv":
+        # CORDIC controller
         cordic_controller = controller()
         cordic_controller.Rs = dut.Rs
         cordic_controller.reset()
         cordic_controller.step_time()
         cordic_controller.start_datafeed()
-        n_pad_zeros = dut.iters + 7
         # Add some zero padding to allow all data to propagate through the pipeline
+        n_pad_zeros = dut.iters + 7
         test_data_padded = np.append(test_data, np.zeros(n_pad_zeros)).reshape(-1, 1)
         size = np.size(test_data_padded)
         dut.IOS.Members["io_in_valid"].Data = np.ones(size, dtype=np.int32).reshape(-1, 1)
