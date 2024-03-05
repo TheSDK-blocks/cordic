@@ -276,9 +276,9 @@ class cordic(rtl, spice, thesdk):
             _=rtl_iofile(self, name='io_in_bits_control', dir='in', iotype='sample', datatype='int', ionames=['io_in_bits_control'])
 
             _=rtl_iofile(self, name='io_out_bits_dOut', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_dOut'])
-            _=rtl_iofile(self, name='io_out_bits_cordic_x', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_x'])
-            _=rtl_iofile(self, name='io_out_bits_cordic_y', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_y'])
-            _=rtl_iofile(self, name='io_out_bits_cordic_z', dir='out', iotype='sample', datatype='int', ionames=['io_out_bits_cordic_z'])
+            _=rtl_iofile(self, name='io_out_bits_cordic_x', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_cordic_x'])
+            _=rtl_iofile(self, name='io_out_bits_cordic_y', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_cordic_y'])
+            _=rtl_iofile(self, name='io_out_bits_cordic_z', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_cordic_z'])
             _=rtl_iofile(self, name='io_out_valid', dir='out', iotype='sample', datatype='int', ionames=['io_out_valid'])
 
             self.rtlparameters=dict([ ('g_Rs', (float, self.Rs)), ]) #Freq for sim clock
