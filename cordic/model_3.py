@@ -283,7 +283,7 @@ class model_3():
             # sigma = True means sigma = 1
             # sigma = False means sigma = -1
             if self._mode == cordic_types.cordic_mode.ROTATION:
-                sigma = z_vec > 0
+                sigma = z_vec >= 0
             elif self._mode == cordic_types.cordic_mode.VECTORING:
                 sigma = y_vec < 0
 
