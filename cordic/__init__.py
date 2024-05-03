@@ -84,6 +84,9 @@ class cordic(rtl, spice, thesdk):
             self.enable_vectoring = cordic_config.get('enable-vectoring', False)
             self.preprocessor_class = cordic_config.get('preprocessor-class', "Basic")
             self.postprocessor_class = cordic_config.get('postprocessor-class', "Basic")
+            self.used_inputs = cordic_config.get('used-inputs', [1, 2, 3])
+            self.used_outputs = cordic_config.get('used-outputs', [1, 2, 3])
+            self.use_dout = cordic_config.get('use-dout', True)
             self.use_phase_accum = None
             self.phase_accum_width = None
             if cordic_config.get('up-convert-config'):
@@ -218,12 +221,16 @@ class cordic(rtl, spice, thesdk):
 
     def convert_outputs(self, to_double: bool):
         # TODO: replace with outlist
-        converted = [
-            self.IOS.Members["io_out_bits_dOut"],
-            self.IOS.Members["io_out_bits_cordic_x"],
-            self.IOS.Members["io_out_bits_cordic_y"],
-            self.IOS.Members["io_out_bits_cordic_z"],
-        ]
+        converted = []
+        if 1 in self.used_outputs:
+            converted.append(self.IOS.Members["io_out_bits_cordic_x"])
+        if 2 in self.used_outputs:
+            converted.append(self.IOS.Members["io_out_bits_cordic_y"])
+        if 3 in self.used_outputs:
+            converted.append(self.IOS.Members["io_out_bits_cordic_z"])
+        if self.use_dout:
+            converted.append(self.IOS.Members["io_out_bits_dOut"])
+
         for ios in converted:
             new_arr = np.zeros(len(ios.Data), dtype='float32')
             ios.Data = ios.Data.astype('int32')
