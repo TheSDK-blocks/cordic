@@ -60,6 +60,7 @@ class cordic(rtl, spice, thesdk):
         self.IOS.Members["io_out_bits_cordic_y"] = IO()
         self.IOS.Members["io_out_bits_cordic_z"] = IO()
         self.IOS.Members["io_out_valid"] = IO()
+        self.IOS.Members["io_out_ready"] = IO()
 
         self.IOS.Members['control_write']= IO() 
         self.IOS.Members["clock"] = IO()
@@ -287,6 +288,7 @@ class cordic(rtl, spice, thesdk):
             _=rtl_iofile(self, name='io_out_bits_cordic_y', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_cordic_y'])
             _=rtl_iofile(self, name='io_out_bits_cordic_z', dir='out', iotype='sample', datatype='sint', ionames=['io_out_bits_cordic_z'])
             _=rtl_iofile(self, name='io_out_valid', dir='out', iotype='sample', datatype='int', ionames=['io_out_valid'])
+            _=rtl_iofile(self, name='io_out_ready', dir='in', iotype='sample', datatype='int', ionames=['io_out_ready'])
 
             self.rtlparameters=dict([ ('g_Rs', (float, self.Rs)), ]) #Freq for sim clock
 
@@ -304,6 +306,7 @@ class cordic(rtl, spice, thesdk):
         self.iofile_bundle.Members["io_out_bits_cordic_y"].rtl_io_condition='io_out_valid'
         self.iofile_bundle.Members["io_out_bits_cordic_z"].rtl_io_condition='io_out_valid'
         self.iofile_bundle.Members["io_out_valid"].rtl_io_condition='initdone'
+        self.iofile_bundle.Members["io_out_ready"].rtl_io_condition='initdone'
 
     def run_cocotb(self):
         """This method holds an experimental cocotb flow.
@@ -436,6 +439,7 @@ if __name__ == "__main__":
         n_pad_zeros = dut.iters + 7
         test_data_padded = np.append(test_data, np.zeros(n_pad_zeros)).reshape(-1, 1)
         size = np.size(test_data_padded)
+        dut.IOS.Members["io_out_ready"].Data = np.ones(size, dtype=np.int32).reshape(-1, 1)
         dut.IOS.Members["io_in_valid"].Data = np.ones(size, dtype=np.int32).reshape(-1, 1)
         # Set valid to 0 for zero padding samples
         dut.IOS.Members["io_in_valid"].Data[-n_pad_zeros:] = 0
