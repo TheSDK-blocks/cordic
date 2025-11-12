@@ -4,6 +4,7 @@ For more hardware specs and configuration options, see `chisel/README.md`.
 ## IOS
 
 - `io_in_valid` - Set this to 1 when feeding valid input data
+- `io_in_ready` - Input ready to receive data
 - `io_in_bits_rs1` - Input 1 (x)
 - `io_in_bits_rs2` - Input 2 (y)
 - `io_in_bits_rs3` - Input 3 (z)
@@ -13,6 +14,7 @@ For more hardware specs and configuration options, see `chisel/README.md`.
 - `io_out_bits_cordic_y` - Output y
 - `io_out_bits_cordic_z` - Output z
 - `io_out_valid` - 1 when valid data out
+- `io_out_ready` - Output ready to receive data
 - `clock` - clock
 - `reset` - reset
 
